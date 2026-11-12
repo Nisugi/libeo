@@ -30,7 +30,7 @@ module EO
     # @return [Boolean]
     def holding?(obj)
       return false if obj.nil?
-      [GameObj.right_hand.id, GameObj.left_hand.id].include?(obj.id)
+      Lich::Stash.in_hand?(obj)
     end
 
     # @param side [Symbol] :right or :left
@@ -43,7 +43,7 @@ module EO
     # @param side [Symbol]
     # @return [Boolean] empty and usable
     def free?(side)
-      (side == :right ? GameObj.right_hand : GameObj.left_hand).id.nil? && usable?(side)
+      Lich::Stash.empty_hand?(side) && usable?(side)
     end
 
     # Make a hand free, putting away what is in the one chosen: the left
@@ -80,6 +80,8 @@ module EO
       when :right then stow.call(GameObj.right_hand) if checkright
       when :left then stow.call(GameObj.left_hand) if checkleft
       end
+      # A carried item in a closed container: Lich's Stash opens the way.
+      Lich::Stash.open_path_to(item)
       line = EO.result("_drag ##{item.id} #{to}", Regexp.union(GET, MISSING, OVERLOADED))
       20.times do
         return :held if holding?(item)

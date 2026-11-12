@@ -21,8 +21,8 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/travel.rb` | `EO.go2`, `EO.at?`, `EO.nearest`, `EO.visit`, `EO.room_id`, `EO.wander` (one step, least recently visited first) |
 | `eo/wander.rb` | `EO::Wander`: a step from anywhere (the Elemental Confluence learned as it is walked), picking a creature to stop for, learning what TARGET accepts (from ewander) |
 | `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime |
-| `eo/containers.rb` | `EO::Containers`: open a container only when it is closed, see one open, read contents the game does not refresh |
-| `eo/hands.rb` | `EO::Hands`: free a hand, take an item, wear, put into a container, the READY list; every outcome comes back as a word (from eloot) |
+| `eo/containers.rb` | `EO::Containers`: open a container only when it is closed, see one open, read contents the game does not refresh; a carried container is asked of Lich's `Inventory`, the rest by LOOK IN |
+| `eo/hands.rb` | `EO::Hands`: free a hand, take an item, wear, put into a container, the READY list; every outcome comes back as a word (from eloot), over Lich's `Stash` for which hand holds what and opening the way to an item |
 | `eo/town.rb` | `EO::Town`: which shop to walk to and whether to go at all, a bounty town's region, Four Winds Isle, the trash can, the locksmith pool's worker (from eloot) |
 | `eo/items.rb` | `EO::Items`: toss unless marked, phase and unphase a box, lift a curse, and the disk that follows the character (from eloot) |
 | `eo/locker.rb` | `EO::Locker`: the character's locker rooms, getting into a booth (taken, elsewhere, a debt), opening it to a container, leaving (from eloot) |

@@ -97,6 +97,12 @@
       fill_defaults, prune), the profile file and the ListSettingsForm helpers, from the e-scripts
     - EO.say, EO.word_wrap: the e-scripts' message and wrap (the Lich check and the
       script version are Lich's own: Script.require_lich_version!, Script.version)
+    - whether wounds allow a cast is Lich's Injured.able_to_cast? everywhere
+    - EO::Containers asks Lich's Inventory about a carried container: OPEN only when it
+      is closed, contents without LOOK IN; LOOK IN stays for the disk, a box on the
+      floor, and a session without the extended feed
+    - EO::Hands uses Lich's Stash for which hand holds what, and to open the way to
+      an item in a closed container before taking it
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
