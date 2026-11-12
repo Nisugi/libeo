@@ -329,31 +329,11 @@ end
 before_dying { ELoot.release_room_lease(eloot_load_token) }
 
 # Check version of Lich for compatibility
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# A libeo loaded earlier in this Lich session may be older than this script
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
-
-lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
-
-if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
-  if $frontend == 'stormfront' || $frontend == 'profanity'
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
-    _respond ""
-    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-  else
-    _respond "##" + "########################################"
-    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
-    _respond ">" + "Please update to a newer version."
-    _respond ">" + ""
-    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
-    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
-    _respond "##" + "########################################"
-  end
-  exit
-end
+exit unless EO.require_lich
 
 require 'yaml'
 require 'terminal-table'
@@ -1882,17 +1862,14 @@ module ELoot # Profile loading/saving and settings
   def self.load_defaults()
     default_hash = defaults_hash
 
-    Dir.mkdir(File.join(DATA_DIR, XMLData.game)) unless File.exist?(File.join(DATA_DIR, XMLData.game))
-    Dir.mkdir(File.join(DATA_DIR, XMLData.game, Char.name)) unless File.exist?(File.join(DATA_DIR, XMLData.game, Char.name))
-
-    File.write(File.join(DATA_DIR, XMLData.game, Char.name, "eloot.yaml"), default_hash.to_yaml)
+    EO::Settings.save_profile('eloot', default_hash)
 
     default_hash
   end
 
   def self.load_profile(name: Char.name)
     if name != nil
-      filename = File.join(DATA_DIR, XMLData.game, name, "eloot.yaml")
+      filename = EO::Settings.profile_path('eloot', name: name)
       if File.exist?(filename) && name == Char.name
         settings_hash = YAML.load_file(filename)
       elsif !File.exist?(filename) && name != Char.name
@@ -1936,8 +1913,7 @@ module ELoot # Profile loading/saving and settings
   end
 
   def self.save_profile(silent: false)
-    filename = File.join(DATA_DIR, XMLData.game, Char.name, "eloot.yaml")
-    File.write(filename, ELoot.data.settings.to_yaml)
+    filename = EO::Settings.save_profile('eloot', ELoot.data.settings)
     ELoot.msg(type: "info", text: " Settings saved to file: #{filename}.") unless silent
   end
 
@@ -2662,8 +2638,7 @@ module ELoot # Script utility type methods
   def self.get_script_version
     return @room_scope[:version] if room_scope?
 
-    data = Script.list.find { |x| x.name == Script.current.name }.inspect
-    return data[/version: (\d+\.\d+\.\d+)/i, 1]
+    EO.script_version
   end
 
   def self.help
@@ -2811,7 +2786,7 @@ module ELoot # Script utility type methods
     rows << ["Parameter", { value: "Value", colspan: 6 }]
     rows << :separator
     ELoot.data.settings.each do |item|
-      setting_value = item[0].to_s =~ /gem_horde_inv|alchemy_horde_inv/ ? item[1].join("\n") : ELoot.word_wrap(item[1].to_s)
+      setting_value = item[0].to_s =~ /gem_horde_inv|alchemy_horde_inv/ ? item[1].join("\n") : EO.word_wrap(item[1].to_s)
       rows << [item[0], { value: setting_value, colspan: 6 }]
     end
 
@@ -2854,7 +2829,7 @@ module ELoot # Script utility type methods
       Inventory.open_single_container(sack)
 
       sack.contents.each do |thing|
-        rows << [sack.noun.capitalize, ELoot.word_wrap(thing.name, 25), thing.type.split(',').join("\n"), { value: thing.sellable, colspan: 4 }]
+        rows << [sack.noun.capitalize, EO.word_wrap(thing.name, 25), thing.type.split(',').join("\n"), { value: thing.sellable, colspan: 4 }]
       end
     end
 
@@ -2886,7 +2861,7 @@ module ELoot # Script utility type methods
     rows << :separator
     rows << [{ value: " *** GameObj Types ***", colspan: 7 }]
     rows << :separator
-    rows << [{ value: "#{ELoot.word_wrap(GameObj.type_data.map { |k, _v| k }.sort.join(', '), 100)}", colspan: 7 }]
+    rows << [{ value: "#{EO.word_wrap(GameObj.type_data.map { |k, _v| k }.sort.join(', '), 100)}", colspan: 7 }]
 
     table = Terminal::Table.new :title => "#{Script.current.name.capitalize} v#{ELoot.get_script_version}", :rows => rows
 
@@ -2921,10 +2896,6 @@ module ELoot # Script utility type methods
     ELoot.msg(type: "info", text: " #{item.name} was not lootable, adding to list.")
     ELoot.data.settings[:unlootable].push(item.name)
     ELoot.save_profile()
-  end
-
-  def self.word_wrap(text, width = 60)
-    text.gsub(/(.{1,#{width}})(\s+|\Z)/, "\\1\n").strip
   end
 end
 

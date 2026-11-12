@@ -203,32 +203,10 @@
 =end
 
 # A libeo loaded earlier in this Lich session may be older than this script
-# needs; load it again unless the newest thing used here is already defined.
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
-
-lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
-
-if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
-  if $frontend == 'stormfront' || $frontend == 'profanity'
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
-    _respond ""
-    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-  else
-    _respond "##" + "########################################"
-    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
-    _respond ">" + "Please update to a newer version."
-    _respond ">" + ""
-    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
-    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
-    _respond "##" + "########################################"
-  end
-  exit
-end
+exit unless EO.require_lich
 
 require 'yaml'
 require 'terminal-table'
@@ -302,11 +280,8 @@ module EBounty
       :selling_script  => "",
       :default_profile => ""
     }
-    Dir.mkdir("#{$data_dir}#{XMLData.game}") unless File.exist?("#{$data_dir}#{XMLData.game}")
-    Dir.mkdir("#{$data_dir}#{XMLData.game}/#{Char.name}") unless File.exist?("#{$data_dir}#{XMLData.game}/#{Char.name}")
-    Dir.mkdir("#{$data_dir}#{XMLData.game}/#{Char.name}/bigshot_profiles") unless File.exist?("#{$data_dir}#{XMLData.game}/#{Char.name}/bigshot_profiles")
-
-    File.write("#{$data_dir}#{XMLData.game}/#{Char.name}/ebounty.yaml", default_hash.to_yaml)
+    FileUtils.mkdir_p(File.join(DATA_DIR, XMLData.game, Char.name, 'bigshot_profiles'))
+    EO::Settings.save_profile('ebounty', default_hash)
 
     default_hash
   end
@@ -317,22 +292,15 @@ module EBounty
   end
 
   def self.load_profile
-    filename = File.join(DATA_DIR, XMLData.game, Char.name, "ebounty.yaml")
-
-    if File.exist?("#{filename}")
-      settings_hash = YAML.load_file(filename)
-    elsif !File.exist?("#{filename}")
-      EBounty.msg("info", " No current settings found.  Loading defaults for configurtion.")
+    EO::Settings.load_profile('ebounty') || begin
+      EBounty.msg("info", " No current settings found.  Loading defaults for configuration.")
       EBounty.msg("info", " Suggest you configure to your needs with ;ebounty setup")
-      settings_hash = EBounty.load_defaults()
+      EBounty.load_defaults
     end
-
-    settings_hash
   end
 
   def self.save_profile(settings)
-    filename = File.join(DATA_DIR, XMLData.game, Char.name, "ebounty.yaml")
-    File.write(filename, settings.to_yaml)
+    filename = EO::Settings.save_profile('ebounty', settings)
     EBounty.msg("info", " Settings saved to file: #{filename}.")
   end
 
@@ -497,10 +465,7 @@ module EBounty
     exit
   end
 
-  def self.get_script_version
-    data = Script.list.find { |x| x.name == Script.current.name }.inspect
-    return data[/version: (\d+\.\d+\.\d+)/i, 1]
-  end
+  def self.get_script_version = EO.script_version
 
   # Fog home by the profile's fog_return method (1-5); Lich's Fog casts it.
   # fog_optional means only when rest was forced by wounds or encumbrance.
@@ -600,17 +565,7 @@ module EBounty
 
     return if type == "debug" && !EBounty.data.settings[:debug]
 
-    if text.class == Hash
-      text = text.inspect.gsub("#<", "#")
-    elsif text.class == Array
-      text = text.to_s
-    elsif text.class == String
-      text = text.gsub("#<", "#")
-    end
-
-    type = type == "debug" ? "speech" : type
-
-    Lich::Messaging.msg(type, text)
+    EO.say(type, text)
   end
 
   def self.switch_profile(creature = nil)

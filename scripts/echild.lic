@@ -113,7 +113,9 @@ Old Changelog:
 2010-02-19 - added illistim and disabled automatic reward collection
 =end
 
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# A libeo loaded earlier in this Lich session may be older than this script
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.2.0')
 EO.require('0.2.0')
 
 module EChild

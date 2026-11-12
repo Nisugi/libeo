@@ -182,32 +182,11 @@
     - Initial release
 =end
 
-# Check version of Lich for compatibility
-lich_gem_requires = '5.22.0'
-
-if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
-  if $frontend == 'stormfront' || $frontend == 'profanity'
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
-    _respond ""
-    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-  else
-    _respond "##" + "########################################"
-    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
-    _respond ">" + "Please update to a newer version."
-    _respond ">" + ""
-    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
-    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
-    _respond "##" + "########################################"
-  end
-  exit
-end
-
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# A libeo loaded earlier in this Lich session may be older than this script
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
+exit unless EO.require_lich('5.22.0')
 
 require 'yaml'
 require 'securerandom'
@@ -333,7 +312,7 @@ module Ecleanse
       @original_settings = Marshal.load(Marshal.dump(settings))
 
       # Get script version
-      @settings[:version] = @version = Util.get_script_version
+      @settings[:version] = @version = EO.script_version
 
       Setup.fill_defaults(@settings)
       Setup.prune(@settings)
@@ -398,8 +377,7 @@ module Ecleanse
         Lich::Messaging.msg('plain', " Nothing to save. No changes were made.")
         respond
       else
-        filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ecleanse.yaml')
-        File.write(filename, result.to_yaml)
+        filename = EO::Settings.save_profile('ecleanse', result)
         respond
         Lich::Messaging.msg('plain', " Settings saved to file: #{filename}.")
         respond
@@ -557,17 +535,7 @@ module Ecleanse
     }
   end
 
-  def self.load_profile
-    filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ecleanse.yaml')
-
-    if File.exist?(filename)
-      settings_hash = YAML.load_file(filename)
-    else
-      settings_hash = Ecleanse.load_defaults
-    end
-
-    return settings_hash
-  end
+  def self.load_profile = EO::Settings.load_profile('ecleanse') || Ecleanse.load_defaults
 end
 
 # Main Script Methods. The cures, the hazards, the disarm search and the
@@ -728,11 +696,11 @@ module Ecleanse
       disarm_id = details[:disarm_id]
       room_id = details[:room]&.id
 
-      Util.msg("yellow", " ########## DISARMED!!! ##########")
-      Util.msg("yellow", " ## Room#: #{room_id}")
-      Util.msg("yellow", " ## Room Name: #{Array(details[:room]&.title).first}")
-      Util.msg("yellow", " ## Looking for: #{item}")
-      Util.msg("yellow", " ########## DISARMED!!! ##########")
+      EO.say("yellow", " ########## DISARMED!!! ##########")
+      EO.say("yellow", " ## Room#: #{room_id}")
+      EO.say("yellow", " ## Room Name: #{Array(details[:room]&.title).first}")
+      EO.say("yellow", " ## Looking for: #{item}")
+      EO.say("yellow", " ########## DISARMED!!! ##########")
       EO.go2(room_id) if room_id
 
       stops = EO::Cleanse::Disarms.prepare(policy)
@@ -754,15 +722,15 @@ module Ecleanse
       else
         search = EO::Cleanse::Disarms.search(item, known_ids: known_ids, room_id: room_id, id: disarm_id) do |event, found|
           case event
-          when :other then Util.msg("yellow", " Recovered #{found} while looking for #{item}. Still searching.")
-          when :inferred then Util.msg("yellow", " No recovery message seen, but hand state changed - treating #{item} as recovered.")
+          when :other then EO.say("yellow", " Recovered #{found} while looking for #{item}. Still searching.")
+          when :inferred then EO.say("yellow", " No recovery message seen, but hand state changed - treating #{item} as recovered.")
           end
         end
         case search.outcome
         when :cannot_search
-          Util.msg("yellow", " Unable to search. #{item} is in room #{room_id}. Use #{$lich_char}#{Script.current.name} disarmrecover to try again.")
+          EO.say("yellow", " Unable to search. #{item} is in room #{room_id}. Use #{$lich_char}#{Script.current.name} disarmrecover to try again.")
         when :nothing_here
-          Util.msg("yellow", " Nothing to recover in room #{room_id}. No longer tracking disarms there.")
+          EO.say("yellow", " Nothing to recover in room #{room_id}. No longer tracking disarms there.")
         end
         stashes = search.stashes
         EO.settle
@@ -811,7 +779,7 @@ module Ecleanse
       # A bite/spit maneuver from a Shambling Lurk in the Sanctum
       vat_room = EO::Cleanse::Traps.vat_room
       if vat_room.nil?
-        Util.msg("yellow", " The infected wound is cleaned at the Sanctum's vat, which this map does not know.")
+        EO.say("yellow", " The infected wound is cleaned at the Sanctum's vat, which this map does not know.")
         return
       end
 
@@ -860,9 +828,9 @@ module Ecleanse
     # ;ecleanse last disarm - lists what is still lost, newest first.
     def self.disarm_report
       disarms = EO::Cleanse::Disarms.list
-      Util.msg("yellow", " No unrecovered disarms.") if disarms.empty?
+      EO.say("yellow", " No unrecovered disarms.") if disarms.empty?
       disarms.reverse_each do |entry|
-        Util.msg("yellow", " #{entry[:item]} - Room #{entry[:room]} #{entry[:title]} - #{(Time.now.to_i - entry[:at]) / 60} min ago")
+        EO.say("yellow", " #{entry[:item]} - Room #{entry[:room]} #{entry[:title]} - #{(Time.now.to_i - entry[:at]) / 60} min ago")
       end
     end
 
@@ -870,11 +838,11 @@ module Ecleanse
     def self.disarm_recover
       entry = EO::Cleanse::Disarms.list.last
       if entry.nil?
-        Util.msg("yellow", " No unrecovered disarms to go back for.")
+        EO.say("yellow", " No unrecovered disarms to go back for.")
         return
       end
       if dead?
-        Util.msg("yellow", " Can't go back for #{entry[:item]} while dead. It is in room #{entry[:room]}.")
+        EO.say("yellow", " Can't go back for #{entry[:item]} while dead. It is in room #{entry[:room]}.")
         return
       end
 
@@ -882,7 +850,7 @@ module Ecleanse
       # disarm room is saved with no id.
       room = entry[:room].nil? ? nil : Room[entry[:room]]
       if room.nil?
-        Util.msg("yellow", " Can't find the room #{entry[:item]} was lost in (#{entry[:title]}) on the map.")
+        EO.say("yellow", " Can't find the room #{entry[:item]} was lost in (#{entry[:title]}) on the map.")
         return
       end
 
@@ -972,11 +940,6 @@ module Ecleanse
   end
 
   module Util
-    def self.get_script_version
-      data = Script.list.find { |x| x.name == Script.current.name }.inspect
-      return data[/version: (\d+\.\d+\.\d+)/i, 1]
-    end
-
     def self.help
       EO.help([
                 ['setup', 'Setup window'],
@@ -985,23 +948,6 @@ module Ecleanse
                 ['last disarm', "Lists disarms not yet recovered (up to #{EO::Cleanse::Disarms::MAX})"],
                 ['disarmrecover', 'Goes back for the most recent disarm not yet recovered'],
               ])
-    end
-
-    def self.msg(type = info, text)
-      # color options - set type to use
-      # yellow, orange, teal, green, plain
-
-      if text.class == Hash
-        text = text.inspect.gsub("#<", "#")
-      elsif text.class == Array
-        text = text.to_s
-      elsif text.class == String
-        text = text.gsub("#<", "#")
-      end
-
-      type = type == "debug" ? "speech" : type
-
-      Lich::Messaging.msg(type, text)
     end
   end
 

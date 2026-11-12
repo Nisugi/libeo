@@ -74,8 +74,12 @@
 
 =end
 
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# A libeo loaded earlier in this Lich session may be older than this script
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
+exit unless EO.require_lich
+
 =begin
 waggle.lic prior release notes
   0.18.4 (2023-04-05):
@@ -105,30 +109,6 @@ waggle.lic prior release notes
 =end
 
 # fixme: option to cast high level spells first
-
-# Check version of Lich for compatibility
-lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
-
-if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
-  if $frontend == 'stormfront' || $frontend == 'profanity'
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
-    _respond ""
-    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
-    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
-    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
-  else
-    _respond "##" + "########################################"
-    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
-    _respond ">" + "Please update to a newer version."
-    _respond ">" + ""
-    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
-    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
-    _respond "##" + "########################################"
-  end
-  exit
-end
 
 require 'yaml'
 require 'terminal-table'
@@ -640,10 +620,7 @@ module Ewaggle
     }
   end
 
-  def self.get_script_version
-    data = Script.list.find { |x| x.name == Script.current.name }.inspect
-    return data[/version: (\d+\.\d+\.\d+)/i, 1]
-  end
+  def self.get_script_version = EO.script_version
 
   def self.load(settings)
     @@data = Data.new(settings)
@@ -724,17 +701,7 @@ module Ewaggle
     return default_hash
   end
 
-  def self.load_profile
-    filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ewaggle.yaml')
-
-    if File.exist?(filename)
-      settings_hash = YAML.load_file(filename)
-    else
-      settings_hash = Ewaggle.load_defaults
-    end
-
-    settings_hash
-  end
+  def self.load_profile = EO::Settings.load_profile('ewaggle') || Ewaggle.load_defaults
 
   def self.save_profile
     if Ewaggle.data.settings == Ewaggle.data.original_settings
@@ -742,8 +709,7 @@ module Ewaggle
       Lich::Messaging.msg('plain', " Nothing to save. No changes were made.")
       respond
     else
-      filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ewaggle.yaml')
-      File.write(filename, Ewaggle.data.settings.to_yaml)
+      filename = EO::Settings.save_profile('ewaggle', Ewaggle.data.settings)
       respond
       Lich::Messaging.msg('plain', " Settings saved to file: #{filename}.")
       respond
@@ -1040,7 +1006,7 @@ module Ewaggle
     retribution = Ewaggle.data.settings[:retribution_spell].to_s.empty? ? 'none' : "#{Ewaggle.data.settings[:retribution_spell]} #{Spell[Ewaggle.data.settings[:retribution_spell]]}"
     rows << ["retribution spell", retribution]
     rows << ["armor list", Ewaggle.data.armor_list.join(', ')] unless Ewaggle.data.armor_list.empty?
-    rows << ["cast list", Ewaggle.word_wrap(Ewaggle.data.cast_list.join(', '), 30)]
+    rows << ["cast list", EO.word_wrap(Ewaggle.data.cast_list.join(', '), 30)]
 
     table = Terminal::Table.new(
       title: "#{Script.current.name.capitalize} v#{Ewaggle.get_script_version} Settings",
@@ -1283,10 +1249,6 @@ module Ewaggle
     end
 
     return true
-  end
-
-  def self.word_wrap(text, width = 60)
-    text.gsub(/(.{1,#{width}})(\s+|\Z)/, "\\1\n").strip
   end
 end
 

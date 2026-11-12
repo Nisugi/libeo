@@ -126,7 +126,9 @@
 
 # Check version of Lich for compatibility
 
-Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+# A libeo loaded earlier in this Lich session may be older than this script
+# needs; load it again unless the one loaded is new enough.
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
 
 module EHerbs
