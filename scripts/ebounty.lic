@@ -559,7 +559,7 @@ module EBounty
     end
   end
 
-  def self.msg(type = info, text)
+  def self.msg(type = "info", text)
     # color options - set type to use
     # yellow, orange, teal, green, plain
 
