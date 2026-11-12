@@ -1068,6 +1068,9 @@ module EBounty
 
     extend EO::Settings::Registry
     include EO::Settings::ListForm
+    include EO::Settings::Listing
+
+    def listed_categories = %w[general]
 
     # True when Lich can open a WebUI window for this script.
     def self.available? = EO::Settings.available?(:ListSettingsForm)
@@ -1393,36 +1396,6 @@ module EBounty
     end
 
     # --------------------------------------------------------- other output --
-
-    def list(cat_to_list: 'all')
-      indent_size = 2
-      print_array =
-        proc do |key, value, indent|
-          _respond("#{' ' * indent_size * indent.to_i}#{key}:")
-          value.sort_by!(&:to_s).each { |entry| _respond("#{' ' * indent_size * (indent.to_i + 1)}#{value.index(entry) + 1}. #{entry}") }
-        end
-
-      print_value = proc { |key, value, indent| _respond("#{' ' * indent_size * indent.to_i}#{key}: #{value}") }
-
-      categories = cat_to_list == 'all' ? %w[general] : [cat_to_list]
-      if $frontend == 'stormfront'
-        output = "<output class=\"mono\"/>\n"
-      else
-        output = String.new
-      end
-      categories.each do |opt|
-        _respond("#{output}") if !output.empty?
-        _respond("#{monsterbold_start}= #{opt.capitalize} =#{monsterbold_end}\n")
-        @@categories[opt.to_sym].each do |id, _|
-          value = @settings[id]
-          value.class == Array ? print_array.call(id, value, 1) : print_value.call(id, value, 1)
-        end
-      end
-      if $frontend == 'stormfront'
-        output = "<output class=\"\"/>\n"
-        _respond("#{output}")
-      end
-    end
   end
 
   module Hunting

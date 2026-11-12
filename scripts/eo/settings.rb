@@ -69,6 +69,56 @@ module EO
       end
     end
 
+    # The footer of a plain SettingsForm window (eherbs, ecleanse, ewaggle):
+    # what closing does, Cancel, and Save & Close. Call it as
+    # EO::Settings.footer from inside a layout block.
+    #
+    # @param status [String] a message to show ahead of the note
+    # @param tooltip [String, nil] Save & Close's tooltip
+    # @param wrap [Boolean] let the note wrap
+    def self.footer(ui, save, cancel, status: '', tooltip: nil, wrap: false)
+      ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
+        ui.text(slot: '0', key: 'footer-text', **(wrap ? { wrap: true } : {}), emphasis: :subtle,
+                content: "#{status.to_s.empty? ? '' : "#{status}    "}Cancel or closing the window discards changes.")
+        ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
+        save.call(ui, slot: '2', variant: :primary, **(tooltip ? { tooltip: tooltip } : {}))
+      end
+    end
+
+    # The settings printed as `;<script> settings` shows them, one category
+    # at a time. Included into a Setup that extends Registry and holds
+    # @settings.
+    module Listing
+      def list(cat_to_list: 'all')
+        mono = $frontend == 'stormfront'
+        categories = cat_to_list == 'all' ? listed_categories : [cat_to_list]
+        categories.each do |name|
+          _respond("<output class=\"mono\"/>\n") if mono
+          _respond("#{monsterbold_start}= #{name.capitalize} =#{monsterbold_end}\n")
+          self.class.categories[name.to_sym].each_key do |key|
+            value = listed_value(key)
+            if value.is_a?(Array)
+              _respond("  #{key}:")
+              value.sort_by(&:to_s).each_with_index { |entry, i| _respond("    #{i + 1}. #{entry}") }
+            else
+              _respond("  #{key}: #{value}")
+            end
+          end
+        end
+        list_extra
+        _respond("<output class=\"\"/>\n") if mono
+      end
+
+      # The categories `all` lists.
+      def listed_categories = self.class.categories.keys.map(&:to_s)
+
+      # How a setting reads in the listing.
+      def listed_value(key) = @settings[key]
+
+      # Anything printed after the categories.
+      def list_extra = nil
+    end
+
     # Extended into a script's Setup class, over its @@categories table:
     # { category => { key => { default: value, ... } } }.
     module Registry

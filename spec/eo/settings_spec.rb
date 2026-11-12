@@ -162,4 +162,38 @@ RSpec.describe EO::Settings do
       expect(form.list_rows(:keep)).to eq([{ 'entry' => 'b' }])
     end
   end
+
+  describe EO::Settings::Listing do
+    let(:lister) do
+      Class.new do
+        extend EO::Settings::Registry
+        include EO::Settings::Listing
+
+        class_variable_set(:@@categories, { general: { names: { default: [] }, tip: { default: 0 } }, internal: { debug: { default: false } } })
+        attr_reader :out
+
+        def initialize(settings) = (@settings = settings) && (@out = [])
+        def _respond(line = '') = @out << line
+        def monsterbold_start = '<b>'
+        def monsterbold_end = '</b>'
+      end
+    end
+
+    it 'prints every category, a list numbered in order, without reordering the setting' do
+      names = %w[b a a]
+      form = lister.new({ names: names, tip: 5, debug: true })
+      $frontend = 'wizard'
+      form.list
+      expect(form.out).to eq(["<b>= General =</b>\n", '  names:', '    1. a', '    2. a', '    3. b', '  tip: 5',
+                              "<b>= Internal =</b>\n", '  debug: true'])
+      expect(names).to eq(%w[b a a])
+    end
+
+    it 'wraps the listing in a mono block for Stormfront' do
+      $frontend = 'stormfront'
+      form = lister.new({ debug: false })
+      form.list(cat_to_list: 'internal')
+      expect(form.out).to eq(["<output class=\"mono\"/>\n", "<b>= Internal =</b>\n", '  debug: false', "<output class=\"\"/>\n"])
+    end
+  end
 end

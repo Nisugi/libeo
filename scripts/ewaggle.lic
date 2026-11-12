@@ -592,13 +592,8 @@ module Ewaggle
     end
 
     def render_footer(ui, save, cancel)
-      setup = self
-      ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
-        ui.text(slot: '0', key: 'footer-text', wrap: true, emphasis: :subtle,
-                content: "#{setup.status.empty? ? '' : "#{setup.status}    "}Cancel or closing the window discards changes.")
-        ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
-        save.call(ui, slot: '2', variant: :primary, tooltip: 'Save the settings to your ewaggle profile and close this window.')
-      end
+      EO::Settings.footer(ui, save, cancel, status: status, wrap: true,
+                                            tooltip: 'Save the settings to your ewaggle profile and close this window.')
     end
 
     attr_reader :status

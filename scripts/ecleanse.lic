@@ -305,6 +305,7 @@ module Ecleanse
     }
 
     extend EO::Settings::Registry
+    include EO::Settings::Listing
 
     # True when Lich can open a WebUI window for this script.
     def self.available? = EO::Settings.available?(:SettingsForm)
@@ -455,41 +456,7 @@ module Ecleanse
             end
           end
         end
-        ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
-          ui.text(slot: '0', key: 'footer-text', emphasis: :subtle, content: 'Cancel or closing the window discards changes.')
-          ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
-          save.call(ui, slot: '2', variant: :primary)
-        end
-      end
-    end
-
-    def list(cat_to_list: 'all')
-      indent_size = 2
-      print_array =
-        proc do |key, value, indent|
-          _respond("#{' ' * indent_size * indent.to_i}#{key}:")
-          value.sort!.each { |entry| _respond("#{' ' * indent_size * (indent.to_i + 1)}#{value.index(entry) + 1}. #{entry}") }
-        end
-
-      print_value = proc { |key, value, indent| _respond("#{' ' * indent_size * indent.to_i}#{key}: #{value}") }
-
-      categories = cat_to_list == 'all' ? @@categories.keys.map(&:to_s) : [cat_to_list]
-      if $frontend == 'stormfront'
-        output = "<output class=\"mono\"/>\n"
-      else
-        output = String.new
-      end
-      categories.each do |opt|
-        _respond("#{output}") if !output.empty?
-        _respond("#{monsterbold_start}= #{opt.capitalize} =#{monsterbold_end}\n")
-        @@categories[opt.to_sym].each do |id, _|
-          value = @settings[id]
-          value.class == Array ? print_array.call(id, value, 1) : print_value.call(id, value, 1)
-        end
-      end
-      if $frontend == 'stormfront'
-        output = "<output class=\"\"/>\n"
-        _respond("#{output}")
+        EO::Settings.footer(ui, save, cancel)
       end
     end
   end
