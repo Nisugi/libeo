@@ -32,7 +32,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/town.rb` | `EO::Town`: which shop to walk to and whether to go at all, a bounty town's region, Four Winds Isle, the trash can, the locksmith pool's worker (from eloot) |
 | `eo/items.rb` | `EO::Items`: toss unless marked, phase and unphase a box, lift a curse, and the disk that follows the character (from eloot) |
 | `eo/locker.rb` | `EO::Locker`: the character's locker rooms, getting into a booth (taken, elsewhere, a debt), opening it to a container, leaving (from eloot) |
-| `eo/skinning.rb` | `EO::Skinning`: who needs a blunt tool, the candidates, getting ready, the skinning and what it learned (from eloot) |
+| `eo/skinning.rb` | `EO::Skinning`: who needs a blunt tool, which dead to skin and with which tool, the tool drawn and put back, getting ready, the skinning and what it learned, standing up after (from eloot) |
 | `eo/appraisal.rb` | `EO::Appraisal`: ask a shop what an item is worth and read the answer (from eloot) |
 | `eo/loot.rb` | `EO::Loot`: the room's non-loot (features, spell effects, disks), and which loot a `Policy` wants (from eloot) |
 | `eo/selling.rb` | `EO::Selling`: sell one item at a shop: sold, refused or kept (from eloot) |

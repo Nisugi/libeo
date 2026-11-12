@@ -4811,17 +4811,6 @@ module ELoot # Room looting
       return objs
     end
 
-    def self.occassional_skinner(obj)
-      if obj.name =~ /rotting chimera/
-        lines = ELoot.get_command("describe chimera", /The twisted and confused form/, silent: true, quiet: true)
-        if lines.any? { |line| line =~ /A huge scorpion tail rises high from the rear/ }
-          return true
-        end
-      end
-
-      return false
-    end
-
     # The settings as libeo's loot policy; rebuilt each call so ;eloot load is honoured.
     def self.policy
       st = ELoot.data.settings
@@ -4927,100 +4916,56 @@ module ELoot # Room looting
     def self.skin_obj_types(objs, type) # skins type (blunt/dagger) group of dead critters
       return if objs.empty?
 
-      dont_stow = false
-      waitrt?
+      blunt = type == :blunt
+      weapon_key = blunt ? 'skin_weapon_blunt' : 'skin_weapon'
+      sheath_key = blunt ? 'skin_sheath_blunt' : 'skin_sheath'
+      # Check skinner and sheath in case ReadyList/StowList got updated
+      ELoot.ensure_items(key: weapon_key, list: ReadyList.ready_list, inventory: ELoot.data.weapon_inv)
+      ELoot.ensure_items(key: sheath_key, list: ReadyList.ready_list, check_hidden: true)
 
-      if type == :blunt
-        # Check skinner and sheath in case ReadyList/StowList got updated
-        ELoot.ensure_items(key: 'skin_weapon_blunt', list: ReadyList.ready_list, inventory: ELoot.data.weapon_inv)
-        ELoot.ensure_items(key: 'skin_sheath_blunt', list: ReadyList.ready_list, check_hidden: true)
+      skinner = ReadyList.ready_list[weapon_key.to_sym]
+      if blunt && !skinner
+        ELoot.msg(type: "info", text: " No blunt weapon found. Please run setup and make sure it's listed.")
+        return
+      elsif skinner.to_s.empty?
+        skinner = GameObj.right_hand
+        ELoot.msg(type: "info", text: " No edged skinning weapon found. Using your right hand.")
+      end
+      ELoot.msg(type: "debug", text: "#{blunt ? 'blunt' : 'edged'} skinner: #{skinner.inspect}")
 
-        skinner = ReadyList.ready_list[:skin_weapon_blunt]
-        ELoot.msg(type: "debug", text: "blunt skinner: #{skinner.inspect}")
-        unless skinner
-          ELoot.msg(type: "info", text: " No blunt weapon found. Please run setup and make sure it's listed.")
-          return
+      free = ->(hands) { hands == :both ? Inventory.free_hands(both: true) : Inventory.free_hand }
+      put_away = lambda do |tool|
+        Inventory.store_item(ReadyList.ready_list[sheath_key.to_sym] || StowList.stow_list[:default], tool, true)
+        Inventory.store_item(StowList.stow_list[:default], tool) if ELoot.in_hand?(tool)
+      end
+
+      EO::Skinning.with_tool(skinner, blunt: blunt, free: free, draw: ->(tool) { Inventory.drag(tool) }, put_away: put_away) do |hand|
+        EO::Skinning.prepare(kneel: ELoot.data.settings[:skin_kneel], resolve: ELoot.data.settings[:skin_resolve],
+                             nature: ELoot.data.settings[:skin_604])
+        learned = EO::Skinning.skin(objs, hand: hand)
+        unless learned.empty?
+          ELoot.data.settings[:unskinnable].push(*learned)
+          ELoot.data.settings[:unskinnable].uniq!
+          ELoot.save_profile()
         end
-        Inventory.free_hands(both: true)
-      else
-        # Check skinner and sheath in case ReadyList/StowList got update
-        ELoot.ensure_items(key: 'skin_weapon', list: ReadyList.ready_list, inventory: ELoot.data.weapon_inv)
-        ELoot.ensure_items(key: 'skin_sheath', list: ReadyList.ready_list, check_hidden: true)
-
-        if ReadyList.ready_list[:skin_weapon].to_s.empty? || ReadyList.ready_list[:skin_weapon].nil?
-          skinner = GameObj.right_hand
-          ELoot.msg(type: "info", text: " No edged skinning weapon found. Using your right hand.")
-        else
-          skinner = ReadyList.ready_list[:skin_weapon]
-        end
-
-        ELoot.msg(type: "debug", text: "edged skinner: #{skinner.inspect}")
-
-        dont_stow = true if ELoot.in_hand?(skinner)
-
-        unless dont_stow
-          Inventory.free_hand
-        end
-      end
-
-      unless ELoot.in_hand?(skinner)
-        waitrt?
-        Inventory.drag(skinner)
-      end
-
-      skinner_hand = skinner.id == GameObj.left_hand.id ? 'left' : 'right'
-
-      EO::Skinning.prepare(kneel: ELoot.data.settings[:skin_kneel], resolve: ELoot.data.settings[:skin_resolve],
-                           nature: ELoot.data.settings[:skin_604])
-
-      learned = EO::Skinning.skin(objs, hand: skinner_hand)
-      unless learned.empty?
-        ELoot.data.settings[:unskinnable].push(*learned)
-        ELoot.data.settings[:unskinnable].uniq!
-        ELoot.save_profile()
-      end
-
-      return if dont_stow
-
-      if type == :blunt
-        bag = ReadyList.ready_list[:skin_sheath_blunt].nil? ? StowList.stow_list[:default] : ReadyList.ready_list[:skin_sheath_blunt]
-      else
-        bag = ReadyList.ready_list[:skin_sheath].nil? ? StowList.stow_list[:default] : ReadyList.ready_list[:skin_sheath]
-      end
-
-      Inventory.store_item(bag, skinner, true)
-
-      if ELoot.in_hand?(skinner)
-        Inventory.store_item(StowList.stow_list[:default], skinner)
       end
     end
 
     def self.skin(objs = GameObj.dead.to_a) # determines what to skin
-      # the occasional skinner is tried even when learned unskinnable
-      unskinnable = ELoot.data.settings[:unskinnable].reject { |name| objs.any? { |obj| obj.name == name && Loot.occassional_skinner(obj) } }
       excluded = [ELoot.data.critter_exclude_regex]
       excluded << Regexp.union(ELoot.data.settings[:skin_exclude]) if ELoot.data.settings[:skin_exclude].length.positive?
-      objs = EO::Skinning.candidates(objs, unskinnable: unskinnable, exclude: Regexp.union(excluded))
-
+      creature = nil
       if ELoot.data.settings[:skin_bounty_only]
         return unless Bounty.task.skin?
-        bounty_creature = Bounty.task.creature.to_s.downcase
-        objs = objs.select { |obj| obj.name.to_s.downcase.include?(bounty_creature) }
+        creature = Bounty.task.creature.to_s
       end
 
-      return if objs.empty?
+      edged, blunt = EO::Skinning.choose(objs, unskinnable: ELoot.data.settings[:unskinnable], exclude: Regexp.union(excluded), creature: creature)
+      return if edged.empty? && blunt.empty?
 
-      blunts, normals = objs.partition { |obj| EO::Skinning.blunt?(obj) }
-
-      skin_obj_types(normals, :normal)
-      skin_obj_types(blunts, :blunt)
-
-      unless standing?
-        prev_stance = Stance.current
-        ELoot.change_stance('offensive') if GameObj.targets.empty?
-        dothistimeout('stand', 3, /You stand|You quickly roll|You are already standing/) until standing?
-        ELoot.change_stance(prev_stance)
-      end
+      skin_obj_types(edged, :normal)
+      skin_obj_types(blunt, :blunt)
+      EO::Skinning.stand_up
     end
   end
 end

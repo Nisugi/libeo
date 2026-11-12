@@ -51,6 +51,9 @@
     - EO::Guild::Forage: FORAGE SENSE's slots left, and the loop's steps (settle_in,
       forage_once, hurt?, workable?, leave_room) for a driver with its own loop
     - the guards' heirloom check reads the container fresh and matches the name literally
+    - EO::Skinning: choose (the occasional skinner, a bounty's creature, edged or blunt),
+      with_tool (free the hands, draw the tool, put it back), stand_up; kneeling gives up
+      after three tries; from eloot
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
