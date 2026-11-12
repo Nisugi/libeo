@@ -56,4 +56,41 @@ RSpec.describe EO::Guild::Forage do
       expect(described_class.rooms('rose-marrow potion', 'rose-marrow potion')).to eq([])
     end
   end
+
+  describe '.slots_left' do
+    def sense(ranks, last_line)
+      stub_const('Skills', Module.new { define_singleton_method(:survival) { ranks } })
+      allow(EO).to receive(:command).and_return(['Glancing about, you notice the immediate area should support specimens of small flower.', last_line])
+      described_class.slots_left
+    end
+
+    it 'reads the slots from the last line of FORAGE SENSE' do
+      expect(sense(25, 'The surroundings look lush and verdant.')).to eq(5)
+      expect(sense(25, 'The surroundings look a bit browsed.')).to eq(3)
+      expect(sense(25, 'The surroundings look picked over.')).to eq(2)
+      expect(sense(25, 'The surroundings look scavenged.')).to eq(1)
+      expect(sense(25, 'As you glance around, it becomes apparent that someone has been foraging around here recently and you will be unable to find anything useful.')).to eq(0)
+    end
+
+    it 'does not try without the Survival for it' do
+      expect(EO).not_to receive(:command)
+      expect(sense(24, '')).to be_nil
+    end
+  end
+
+  describe '.forage_once' do
+    def forage(line)
+      allow(EO).to receive(:result).and_return(line)
+      allow(EO).to receive(:settle)
+      allow(described_class).to receive(:stow_found)
+      described_class.forage_once('acantha leaf', :sack)
+    end
+
+    it 'tells a find, an empty room, and an herb that does not grow here apart' do
+      expect(forage('You forage briefly and manage to find some acantha leaf!')).to eq(:found)
+      expect(forage('As you forage around, you notice that someone has been foraging here recently and you are unable to find anything useful.')).to eq(:picked_over)
+      expect(forage('As you carefully forage around you can find no hint of what you are looking for.')).to eq(:not_here)
+      expect(forage('You stumble about in a fruitless attempt at foraging.')).to eq(:missed)
+    end
+  end
 end

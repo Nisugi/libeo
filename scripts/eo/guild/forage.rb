@@ -113,8 +113,124 @@ module EO
         line ? Regexp.last_match(1).sub(/^forage /, '').strip : herb
       end
 
+      # FORAGE SENSE's last line: how many of the room's five forage slots
+      # are left. Every herb in a room shares them; they come back one at a
+      # time, every five to ten minutes.
+      SENSE_SLOTS = [
+        [/The surroundings look lush and verdant\./, 5],
+        [/The surroundings look a bit browsed\./, 3],
+        [/The surroundings look picked over\./, 2],
+        [/The surroundings look scavenged\./, 1],
+        [/someone has been foraging around here recently and you will be unable to find anything useful/, 0],
+      ].freeze
+      # Ranks of Survival that unlock FORAGE SENSE.
+      SENSE_RANKS = 25
+
+      # The room's forage slots left, from FORAGE SENSE; nil without the
+      # Survival for it, or when the answer is not one of the five.
+      #
+      # @return [Integer, nil]
+      def slots_left = sense.first
+
+      # FORAGE SENSE, and the slots it says are left.
+      #
+      # @return [Array(Integer, Array<String>), Array(nil, Array<String>)]
+      #   the slots (nil when unknown) and the answer's lines
+      def sense
+        return [nil, ["no FORAGE SENSE: Survival #{Skills.survival.to_i} of #{SENSE_RANKS}"]] if Skills.survival.to_i < SENSE_RANKS
+
+        lines = EO.command('forage sense', Regexp.union(SENSE_SLOTS.map(&:first)), silent: true, quiet: true, timeout: 3)
+        SENSE_SLOTS.each { |pattern, slots| return [slots, lines] if lines.any? { |line| line =~ pattern } }
+        [nil, lines]
+      end
+
+      # Hurt enough to stop and heal: the hands and head FORAGE needs
+      # (Lich's Injured.able_to_search?), a wound or scar past rank 1, or
+      # health under 70%. ebounty's test, with Lich's rules added.
+      #
+      # @param policy [Policy] skip_healing says never
+      # @return [Boolean]
+      def hurt?(policy)
+        return false if policy.skip_healing
+        return true unless Lich::Gemstone::Injured.able_to_search?
+
+        XMLData.injuries.any? { |_area, h| h['wound'] > 1 || h['scar'] > 1 } || Char.percent_health < 70
+      end
+
+      # Whether creatures here send a forager on, by the run option.
+      #
+      # @param policy [Policy]
+      # @return [Boolean]
+      def run?(policy) = policy.use?(:run) && !GameObj.targets.empty?
+
+      # Whether this room can be foraged at all: not run from, claimed, no
+      # black void.
+      #
+      # @param policy [Policy]
+      # @return [Boolean]
+      def workable?(policy)
+        !run?(policy) && Claim.mine? && GameObj.loot.none? { |i| i.name =~ /black void/ }
+      end
+
+      # Before each FORAGE: the helper spells, kneeling, the yierka, 608,
+      # hiding. ebounty's loop body, up to the FORAGE.
+      #
+      # @param policy [Policy]
+      # @param creatures [Array<GameObj>] already calmed by 619, added to
+      # @return [void]
+      def settle_in(policy, creatures)
+        nomagic = Map.current.tags.include?('meta:nomagic')
+        Heirloom::Spells.helpers(policy, creatures) unless nomagic
+        3.times do
+          break if kneeling?
+
+          fput 'kneel'
+          EO.settle
+        end
+        yierka(policy)
+        if !nomagic && policy.use?(:use_608) && Spell[608].known? && !hidden?
+          Lich::Gemstone::Mana.pulse(608)
+          Spell[608].cast if Spell[608].affordable?
+        end
+        fput 'hide' if (policy.use?(:use_gambit) || policy.use?(:hiding)) && !hidden?
+      end
+
+      # One FORAGE, and what it came to; a find is put in the sack.
+      #
+      # @param item [String] what to FORAGE for
+      # @param sack [GameObj]
+      # @param gambit [Boolean] a Rogue with the stealth put gambit
+      # @return [Symbol] :found, :injured, :picked_over (the slots are gone),
+      #   :not_here (the herb does not grow here or no answer), or :missed
+      def forage_once(item, sack, gambit: false)
+        result = EO.result("forage for #{item}", Tables::FORAGE_RESULT)
+        EO.settle
+        if result =~ FOUND
+          stow_found(sack, gambit: gambit && checkhidden)
+          :found
+        elsif result =~ Tables::FORAGE_INJURY
+          EO.settle
+          Spell[114].cast if Spell[114].known? && Spell[114].affordable? && !Map.current.tags.include?('meta:nomagic')
+          :injured
+        elsif result =~ PICKED_OVER then :picked_over
+        elsif result.nil? || result =~ NOTHING_HERE then :not_here
+        else :missed
+        end
+      end
+
+      # Leaving a room: stand, hands back, 213 stopped.
+      #
+      # @param policy [Policy]
+      # @return [void]
+      def leave_room(policy)
+        EO.stand
+        fill_hands
+        Heirloom::Spells.stop_sanctuary(policy)
+      end
+
       # Forage in each room until the sack holds enough. Returns early when
-      # creatures arrive and the policy says to run.
+      # creatures arrive and the policy says to run. The loop ebounty runs;
+      # a driver with its own loop calls the steps above one at a time.
       #
       # @param item [String] what to FORAGE for
       # @param count [Proc] how many are held now
@@ -129,56 +245,34 @@ module EO
         creatures = []
         EO.settle
         Lich::Gemstone::Stance.change('defensive')
-
         rooms.each do |room|
           EO.go2(room)
-          next if (GameObj.targets.count.positive? && policy.use?(:run)) || !Claim.mine? || GameObj.loot.any? { |i| i.name =~ /black void/ }
+          next unless workable?(policy)
 
           empty_hands
           loop do
-            Heirloom::Spells.helpers(policy, creatures) unless Map.current.tags.include?('meta:nomagic')
-            until kneeling?
-              fput 'kneel'
-              EO.settle
-            end
-            yierka(policy)
-            if !Map.current.tags.include?('meta:nomagic') && policy.use?(:use_608) && Spell[608].known? && !hidden?
-              Lich::Gemstone::Mana.pulse(608)
-              Spell[608].cast if Spell[608].affordable?
-            end
-            fput 'hide' if (policy.use?(:use_gambit) || policy.use?(:hiding)) && !hidden?
-
-            result = EO.result("forage for #{item}", Tables::FORAGE_RESULT)
-            EO.settle
-            if result =~ FOUND
-              stow_found(sack, gambit: gambit && checkhidden)
+            settle_in(policy, creatures)
+            case forage_once(item, sack, gambit: gambit)
+            when :found
               held = count.call
               Lich::Messaging.msg('info', " #{held} of #{needed} #{held > 1 ? "#{item}s" : item} foraged")
               break if held >= needed
-            elsif result =~ Tables::FORAGE_INJURY
-              EO.settle
-              Spell[114].cast if Spell[114].known? && Spell[114].affordable? && !Map.current.tags.include?('meta:nomagic')
-            elsif result.nil? || result =~ NOTHING_HERE
-              break
-            elsif result =~ PICKED_OVER
+            when :not_here then break
+            when :picked_over
               break unless evoke_bounty?(policy)
+
               next
             end
-
-            if hurt && !policy.skip_healing && (XMLData.injuries.any? { |_a, h| h['wound'] > 1 || h['scar'] > 1 } || Char.percent_health < 70)
+            if hurt && hurt?(policy)
               back = Room.current.id
               hurt.call
               EO.go2(back)
             end
-            break if !GameObj.targets.empty? && policy.use?(:run)
+            break if run?(policy)
           end
-
-          EO.stand
-          fill_hands
-          Heirloom::Spells.stop_sanctuary(policy)
+          leave_room(policy)
           break if count.call >= needed
         end
-
         Heirloom::Spells.stop_peace(policy)
       end
 

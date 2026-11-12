@@ -17,6 +17,9 @@ module EO
       # opened: ids of containers this visit opened, for the driver to close.
       Visit = Struct.new(:outcome, :opened, keyword_init: true)
 
+      # A found heirloom in the task text; the name without its article.
+      LOCATED = /You have located (?:an? |some )?(.*?) and should bring (?:it back|your find)/i
+
       # Visit the town's guards in turn until one answers. When the task says
       # an heirloom was located, carry it in the right hand first.
       #
@@ -36,7 +39,7 @@ module EO
           guards = guards_here
           next if guards.empty?
 
-          if !carrying && bounty_text =~ /You have located (?:a |an )?(.*?) and should bring (?:it back|your find)/i
+          if !carrying && bounty_text =~ LOCATED
             item = find_heirloom(Regexp.last_match(1), containers, opened)
             return Visit.new(outcome: :heirloom_missing, opened: opened) if item.nil?
             empty_hands
@@ -80,7 +83,8 @@ module EO
       def find_heirloom(name, containers, opened)
         containers.each do |container|
           opened << container.id if Containers.open(container)
-          item = container.contents.to_a.find { |i| i.name.match?(/#{name}/) }
+          # Lich knows a container's contents only once it has been looked in
+          item = Containers.fresh_contents(container).find { |i| i.name.match?(/#{Regexp.escape(name)}/i) }
           return item if item
         end
         nil
