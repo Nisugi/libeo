@@ -133,7 +133,7 @@ module EO
         #   (the walk goes back to where it was headed)
         def run
           $child_last_seen = Map.current.id
-          watch = Watchfor.new(TASK_FAILED) { @failed = true }
+          Watchfor.new(TASK_FAILED) { @failed = true }
           loop do
             walk_to_place
             return fail! if @failed
@@ -148,7 +148,8 @@ module EO
             return :delivered
           end
         ensure
-          watch&.delete
+          # Lich keeps a script's watchfors by pattern; Watchfor has no delete
+          Script.current&.watchfor&.delete(TASK_FAILED)
           if @stop_1011
             waitrt?
             fput 'stop 1011'
@@ -197,12 +198,12 @@ module EO
           Disablers.cast!(num)
         end
 
-        # The child follows a step behind; wait for it here. A room where it
-        # was never seen stops holding after five seconds.
+        # The child follows a step behind; wait here until it arrives, the
+        # task fails, or someone moves us. Never on a timer: walking on
+        # without it leaves it behind (echild never timed out either).
         def wait_for_child
           here = Map.current.id
-          deadline = Time.now + 5
-          wait_until { child_here? || Time.now > deadline || here != Room.current.id || @failed }
+          wait_until { child_here? || here != Room.current.id || @failed }
           $child_last_seen = Map.current.id if child_here?
         end
 

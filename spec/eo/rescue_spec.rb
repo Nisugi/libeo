@@ -128,3 +128,44 @@ RSpec.describe EO::Guild::Rescue do
     expect(described_class.find_child(timeout: 0)).to be_nil
   end
 end
+
+RSpec.describe EO::Guild::Rescue::Walk do
+  let(:npc) { Struct.new(:id, :name, keyword_init: true) }
+  let(:room) { Struct.new(:id, :uid).new(28_978, [7_119_101]) }
+  let(:npcs) { [] }
+  let(:script) { Struct.new(:watchfor).new({}) }
+  let(:walk) do
+    described_class.new(child: 'B69', to: 28_978, points: [28_978], disablers: EO::Guild::Disablers::Policy.new(enabled: false))
+  end
+
+  before do
+    here = room
+    stub_const('Map', Class.new { define_singleton_method(:current) { here } })
+    stub_const('Room', Map)
+    present = npcs
+    stub_const('GameObj', Class.new { define_singleton_method(:npcs) { present }; def self.room_desc = [] })
+    running = script
+    stub_const('Script', Class.new { define_singleton_method(:current) { running } })
+    stub_const('Watchfor', Class.new { define_method(:initialize) { |line, &block| running.watchfor[line] = block } })
+  end
+
+  it 'waits for the child however long it takes, not five seconds' do
+    held = nil
+    walk.define_singleton_method(:wait_until) { |&block| held = block }
+    walk.send(:wait_for_child)
+    later = Time.now + 600
+    allow(Time).to receive(:now).and_return(later)
+    expect(held.call).to be(false) # ten minutes on, still waiting
+    npcs << npc.new(id: 'B69', name: 'a young giantman child')
+    expect(held.call).to be(true)
+  end
+
+  it 'hands the child over and removes its watch for a failed task' do
+    npcs << npc.new(id: 'A61', name: 'sentry Luthrek')
+    asked = []
+    walk.define_singleton_method(:fput) { |line| asked << line }
+    expect(walk.run).to eq(:delivered)
+    expect(asked).to eq(['ask #A61 about bounty'])
+    expect(script.watchfor).to be_empty
+  end
+end
