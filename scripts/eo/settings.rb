@@ -1,15 +1,47 @@
 # frozen_string_literal: true
 
+require 'fileutils'
+require 'yaml'
+
 module EO
-  # The settings window every e-script carries: whether Lich can open one,
-  # the category table its settings live in, and the small helpers ebounty's
-  # and eloot's ListSettingsForm windows share.
+  # The settings every e-script carries: whether Lich can open its window,
+  # the category table its settings live in, the profile file they are saved
+  # to, and the small helpers ebounty's and eloot's ListSettingsForm windows share.
   module Settings
     # @param form [Symbol] the Lich::WebUI form class the window is built on
     # @return [Boolean] whether Lich can open a WebUI window with that form
     def self.available?(form = :SettingsForm)
       defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
         Lich::WebUI.const_defined?(form, false) ? true : false
+    end
+
+    # The character's profile file for a script: <data>/<game>/<character>/<script>.yaml.
+    #
+    # @param script [String] e.g. 'ebounty'
+    # @param name [String] the character
+    # @return [String]
+    def self.profile_path(script, name: Char.name)
+      File.join(DATA_DIR, XMLData.game, name, "#{script}.yaml")
+    end
+
+    # @param script [String]
+    # @param name [String] the character
+    # @return [Hash, nil] the saved settings, nil when there is no profile yet
+    def self.load_profile(script, name: Char.name)
+      path = profile_path(script, name: name)
+      File.exist?(path) ? YAML.load_file(path) : nil
+    end
+
+    # Write the settings, making the character's directory when it is new.
+    #
+    # @param script [String]
+    # @param settings [Hash]
+    # @return [String] the file written
+    def self.save_profile(script, settings)
+      path = profile_path(script)
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, settings.to_yaml)
+      path
     end
 
     # ListSettingsForm keys rows by position and seeds each viewer's table

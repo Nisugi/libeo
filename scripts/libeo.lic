@@ -11,10 +11,11 @@
   This file only loads the library. The library itself is scripts/eo/, one file per
   concern, each readable on its own:
 
-    eo/version.rb      EO.require / EO.version, the version gate
+    eo/version.rb      EO.require / EO.version, the version gate; EO.require_lich, EO.script_version
     eo/help.rb         EO.help, the help table every e-script prints
+    eo/messages.rb     EO.say / EO.word_wrap: a message the way the e-scripts send one
     eo/settings.rb     EO::Settings: whether the setup window can open, the settings table's
-                       lookups and defaults, the ListSettingsForm helpers (the e-scripts')
+                       lookups and defaults, the profile file, the ListSettingsForm helpers
     eo/travel.rb       EO.go2 / EO.at? / EO.nearest / EO.visit / EO.room_id
     eo/command.rb      EO.command / EO.result / EO.settle: send a command, wait out roundtime
     eo/containers.rb   EO::Containers: open a container only when it is closed, see one open,
@@ -93,7 +94,9 @@
   Major_change.feature_addition.bugfix
   v0.3.0 (2026-11-12)
     - EO::Settings: the setup window check, the settings table (get_category, get_setting,
-      fill_defaults, prune) and the ListSettingsForm helpers, from the e-scripts' Setup
+      fill_defaults, prune), the profile file and the ListSettingsForm helpers, from the e-scripts
+    - EO.require_lich, EO.script_version, EO.say, EO.word_wrap: the e-scripts' Lich check,
+      version read, message and wrap
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
@@ -109,7 +112,7 @@ base = File.join(SCRIPT_DIR, 'eo')
 verbose = $VERBOSE
 begin
   $VERBOSE = nil
-  %w[version help settings travel command containers hands town items locker skinning appraisal loot selling locksmith hoard casting wander
+  %w[version help messages settings travel command containers hands town items locker skinning appraisal loot selling locksmith hoard casting wander
      cleanse/tables cleanse/hazards cleanse/afflictions cleanse/disarms cleanse/traps
      coordination/protocol coordination/discovery coordination/parser_projection
      guild/tables guild/policy guild/npcs guild/location guild/forage

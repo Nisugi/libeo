@@ -14,9 +14,10 @@ EO.require('0.3.0')             the version the script was built against
 
 | File | What it holds |
 |---|---|
-| `eo/version.rb` | `EO.require` and `EO.version`, the version gate |
+| `eo/version.rb` | `EO.require` and `EO.version`, the version gate; `EO.require_lich`, the Lich version check; `EO.script_version` |
 | `eo/help.rb` | `EO.help`, the help table every e-script prints |
-| `eo/settings.rb` | `EO::Settings`: whether the setup window can open, the settings table's lookups and defaults, the ListSettingsForm helpers (from the e-scripts' `Setup`) |
+| `eo/messages.rb` | `EO.say` and `EO.word_wrap`: a message the way the e-scripts send one |
+| `eo/settings.rb` | `EO::Settings`: whether the setup window can open, the settings table's lookups and defaults, the profile file, the ListSettingsForm helpers (from the e-scripts' `Setup`) |
 | `eo/travel.rb` | `EO.go2`, `EO.at?`, `EO.nearest`, `EO.visit`, `EO.room_id`, `EO.wander` (one step, least recently visited first) |
 | `eo/wander.rb` | `EO::Wander`: a step from anywhere (the Elemental Confluence learned as it is walked), picking a creature to stop for, learning what TARGET accepts (from ewander) |
 | `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime |

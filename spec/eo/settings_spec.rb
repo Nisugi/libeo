@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'eo_helper'
+require 'tmpdir'
 require_relative '../../scripts/eo/settings'
 
 RSpec.describe EO::Settings do
@@ -87,6 +88,30 @@ RSpec.describe EO::Settings do
       expect(form.place('1')).to eq(slot: '1')
       expect(form.tip_for('t')).to eq(tooltip: 't')
       expect(form.hint_for('h')).to eq(placeholder: 'h')
+    end
+  end
+
+  describe 'profiles' do
+    around do |example|
+      Dir.mktmpdir { |dir| (@dir = dir) && example.run }
+    end
+
+    before do
+      stub_const('DATA_DIR', @dir)
+      stub_const('XMLData', Struct.new(:game).new('GSIV'))
+      stub_const('Char', Struct.new(:name).new('Nisugi'))
+    end
+
+    it 'lives in the character directory' do
+      expect(described_class.profile_path('eloot')).to eq(File.join(@dir, 'GSIV', 'Nisugi', 'eloot.yaml'))
+      expect(described_class.profile_path('eloot', name: 'Alt')).to eq(File.join(@dir, 'GSIV', 'Alt', 'eloot.yaml'))
+    end
+
+    it 'saves, making the directory, and loads back' do
+      expect(described_class.load_profile('eloot')).to be_nil
+      path = described_class.save_profile('eloot', { tip: 5 })
+      expect(File.exist?(path)).to be(true)
+      expect(described_class.load_profile('eloot')).to eq(tip: 5)
     end
   end
 end
