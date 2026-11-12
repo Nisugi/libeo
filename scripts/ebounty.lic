@@ -607,19 +607,7 @@ module EBounty
 
   def self.go2(place)
     EBounty.msg("debug", " #{__method__} | caller: #{caller[0]} | place: #{place}")
-
-    fput('unhide') if (hidden? || invisible?)
-
-    return if Room.current.id == place.to_i || Room.current.tags.include?(place)
-
-    if Room.current.id.nil?
-      if EBounty.data.settings[:debug]
-        EBounty.msg "info", "unknown room location: hope you know what you're doing"
-      else
-        EBounty.msg "error", 'unknown room location'
-      end
-    end
-    Script.run('go2', "#{place} --disable-confirm", { quiet: true })
+    EO.go2(place)
   end
 
   def self.go2_rest
@@ -695,7 +683,7 @@ module EBounty
       fput("deposit #{amount}")
     elsif silvers < keep_silver
       amount = keep_silver - silvers
-      fput("withdrawl #{amount}")
+      fput("withdraw #{amount}")
     end
   end
 

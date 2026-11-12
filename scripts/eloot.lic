@@ -3135,9 +3135,9 @@ module ELoot # Game utility type methods, over libeo
       place = fwi_place.id if fwi_place
     end
 
-    return if Room.current.id == place || Room.current.tags.include?(place)
+    return if EO.at?(place)
 
-    if Room.current.id.nil?
+    if Room.current&.id.nil?
       ELoot.msg(type: "error", text: ' unknown room location')
     end
 
@@ -3152,17 +3152,17 @@ module ELoot # Game utility type methods, over libeo
         place = 'alchemy'
       end
 
-      Script.run('go2', "town --disable-confirm", { quiet: true }) if Room.current.tags.any?(/nexus/)
+      EO.go2('town') if Room.current.tags.any?(/nexus/)
 
       result = dothistimeout("urchin guide #{place}", 3, ELoot.data.urchin_msg)
       if result =~ /You currently have no access to the urchin/
         UserVars.mapdb_use_urchins = false
-        Script.run('go2', "#{place} --disable-confirm", { quiet: true })
+        EO.go2(place)
       elsif result.nil?
         ELoot.msg(type: "error", text: " Unknown result from urchin guide usage.")
       end
     else
-      Script.run('go2', "#{place} --disable-confirm", { quiet: true })
+      EO.go2(place)
     end
   end
 

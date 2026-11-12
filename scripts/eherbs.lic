@@ -1367,13 +1367,10 @@ module EHerbs
     def self.find_herbsack = EHerbs.sack.obj
 
     def self.go2(place)
-      fput('unhide') if hidden? || invisible?
-
-      return if Room.current.id.to_s == place.to_s || Room.current.tags.include?(place)
+      return if EO.at?(place)
 
       Utility.mapped_room
-
-      Script.run('go2', "#{place} --disable-confirm", { quiet: true })
+      EO.go2(place)
     end
 
     def self.mapped_room
