@@ -659,14 +659,7 @@ module ELoot # Data
       @allowed_special_types = Set.new(special_types) & Set.new(@settings[:loot_types].to_a)
     end
 
-    def build_word_boundary_regexes(list)
-      Regexp.union(
-        Array(list).map do |r|
-          source = r.is_a?(Regexp) ? r.source : r.to_s
-          /\b(?:#{source})\b/
-        end
-      )
-    end
+    def build_word_boundary_regexes(list) = EO::Loot.words(list)
 
     def build_compiled_filters
       # Word Boundaries for the various loot exceptions
@@ -4817,12 +4810,8 @@ module ELoot # Room looting
 
     # The settings as libeo's loot policy; rebuilt each call so ;eloot load is honoured.
     def self.policy
-      st = ELoot.data.settings
-      EO::Loot::Policy.new(types: st[:loot_types].to_a, exclude: ELoot.data.loot_exclude_regex,
-                           keep: st[:loot_keep].to_a.empty? ? nil : Regexp.union(st[:loot_keep]),
-                           unlootable: st[:unlootable].to_a, log_unlootables: st[:log_unlootables],
-                           crumbly: st[:crumbly].to_a, level: Stats.level,
-                           heirloom: Bounty.task.heirloom? ? Bounty.task.requirements[:item] : nil)
+      EO::Loot::Policy.from_settings(ELoot.data.settings, level: Stats.level,
+                                                          heirloom: Bounty.task.heirloom? ? Bounty.task.requirements[:item] : nil)
     end
 
     def self.reject_invalid_loot(objs) = EO::Loot.loot(objs, Loot.policy) # rejects room objects that are not loot
@@ -4956,15 +4945,13 @@ module ELoot # Room looting
     end
 
     def self.skin(objs = GameObj.dead.to_a) # determines what to skin
-      excluded = [ELoot.data.critter_exclude_regex]
-      excluded << Regexp.union(ELoot.data.settings[:skin_exclude]) if ELoot.data.settings[:skin_exclude].length.positive?
       creature = nil
       if ELoot.data.settings[:skin_bounty_only]
         return unless Bounty.task.skin?
         creature = Bounty.task.creature.to_s
       end
 
-      edged, blunt = EO::Skinning.choose(objs, unskinnable: ELoot.data.settings[:unskinnable], exclude: Regexp.union(excluded), creature: creature)
+      edged, blunt = EO::Skinning.choose(objs, unskinnable: ELoot.data.settings[:unskinnable], exclude: EO::Skinning.exclusions(ELoot.data.settings), creature: creature)
       return if edged.empty? && blunt.empty?
 
       skin_obj_types(edged, :normal)

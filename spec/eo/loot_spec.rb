@@ -10,6 +10,30 @@ RSpec.describe EO::Loot do
     obj.new(id: id, name: name, noun: noun, type: type)
   end
 
+  describe '.words' do
+    it 'matches each entry as whole words, and nothing for an empty list' do
+      pattern = described_class.words(['rat', /blue (?:crystal|gem)/])
+      expect('a giant rat').to match(pattern)
+      expect('a pirate').not_to match(pattern)
+      expect('a blue gem').to match(pattern)
+      expect('anything').not_to match(described_class.words(nil))
+    end
+  end
+
+  describe 'Policy.from_settings' do
+    it 'reads the policy from eloot settings' do
+      policy = described_class::Policy.from_settings({ loot_types: %w[gem], loot_exclude: ['rock'], loot_keep: [],
+                                                       unlootable: ['dust'], crumbly: nil }, level: 42, heirloom: 'locket')
+      expect(policy.types).to eq(%w[gem])
+      expect('a rock').to match(policy.exclude)
+      expect('a rocky gem').not_to match(policy.exclude)
+      expect(policy.keep).to be_nil
+      expect(policy.unlootable).to eq(['dust'])
+      expect(policy.crumbly).to eq([])
+      expect([policy.level, policy.heirloom]).to eq([42, 'locket'])
+    end
+  end
+
   describe '.junk?' do
     let(:policy) { described_class::Policy.new(types: %w[gem]) }
 

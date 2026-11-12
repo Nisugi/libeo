@@ -44,10 +44,34 @@ module EO
         super
       end
 
+      # The policy eloot's settings describe, so any script reading eloot's
+      # profile (EO::Settings.load_profile('eloot')) loots the same way.
+      # eloot Loot.policy.
+      #
+      # @param settings [Hash] eloot's settings
+      # @param level [Integer]
+      # @param heirloom [String, nil] a bounty's heirloom item
+      # @return [Policy]
+      def self.from_settings(settings, level: 0, heirloom: nil)
+        new(types: settings[:loot_types].to_a, exclude: Loot.words(settings[:loot_exclude]),
+            keep: settings[:loot_keep].to_a.empty? ? nil : Regexp.union(settings[:loot_keep]),
+            unlootable: settings[:unlootable].to_a, log_unlootables: settings[:log_unlootables],
+            crumbly: settings[:crumbly].to_a, level: level, heirloom: heirloom)
+      end
+
       # @return [Regexp, nil]
       def heirloom_pattern
         heirloom.to_s.empty? ? nil : /#{Regexp.escape(heirloom.to_s)}/i
       end
+    end
+
+    # One pattern for a settings list, each entry matched as whole words.
+    # eloot build_word_boundary_regexes.
+    #
+    # @param list [Array<String, Regexp>, nil]
+    # @return [Regexp] matches nothing when the list is empty
+    def self.words(list)
+      Regexp.union(Array(list).map { |r| /\b(?:#{r.is_a?(Regexp) ? r.source : r})\b/ })
     end
 
     # Whether a room object is not loot at all: a feature, a spell effect,

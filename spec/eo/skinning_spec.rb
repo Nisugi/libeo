@@ -3,6 +3,7 @@
 require_relative 'eo_helper'
 require_relative '../../scripts/eo/command'
 require_relative '../../scripts/eo/hands'
+require_relative '../../scripts/eo/loot'
 require_relative '../../scripts/eo/skinning'
 
 RSpec.describe EO::Skinning do
@@ -16,6 +17,15 @@ RSpec.describe EO::Skinning do
   after do
     %i[waitrt? standing? dothistimeout].each do |name|
       described_class.singleton_class.remove_method(name) if described_class.singleton_class.method_defined?(name, false)
+    end
+  end
+
+  describe '.exclusions' do
+    it 'joins the critter exclusions as whole words and the skin exclusions' do
+      pattern = described_class.exclusions({ critter_exclude: ['rat'], skin_exclude: ['wolf'] })
+      expect('giant rat').to match(pattern)
+      expect('pirate').not_to match(pattern)
+      expect('werewolf').to match(pattern)
     end
   end
 

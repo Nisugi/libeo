@@ -22,6 +22,17 @@ module EO
     # e.g. OSA ship captains: the skin has been ruined with alchemical components
     UNSKINNABLE = /You cannot skin|ruined with alchemical components/
 
+    # The creatures eloot's settings say not to skin: its critter
+    # exclusions as whole words, and its skin exclusions. eloot skin.
+    #
+    # @param settings [Hash] eloot's settings
+    # @return [Regexp]
+    def exclusions(settings)
+      excluded = [Loot.words(settings[:critter_exclude])]
+      excluded << Regexp.union(settings[:skin_exclude]) unless settings[:skin_exclude].to_a.empty?
+      Regexp.union(excluded)
+    end
+
     # @param obj [GameObj]
     # @return [Boolean]
     def blunt?(obj)

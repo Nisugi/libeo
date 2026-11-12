@@ -54,6 +54,8 @@
     - EO::Skinning: choose (the occasional skinner, a bounty's creature, edged or blunt),
       with_tool (free the hands, draw the tool, put it back), stand_up; kneeling gives up
       after three tries; from eloot
+    - eloot's settings read by any script: EO::Loot::Policy.from_settings, EO::Loot.words
+      (a list matched as whole words), EO::Skinning.exclusions
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
