@@ -684,6 +684,9 @@ module ELoot # UI Setup
     # Lich keeps this class between runs in a session. Drop the old constants so an
     # updated script never renders with the ones from the version that ran first.
     constants(false).each { |name| remove_const(name) }
+    # The same for methods: one a newer version dropped would otherwise
+    # still run, ahead of the one the class now includes.
+    (instance_methods(false) + private_instance_methods(false)).each { |name| remove_method(name) }
 
     begin
       PAGE_ID = 'eloot-setup'

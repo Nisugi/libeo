@@ -234,6 +234,9 @@ module Ecleanse
 
     # Lich keeps this class between runs in a session; start each run clean.
     constants(false).each { |name| remove_const(name) }
+    # The same for methods: one a newer version dropped would otherwise
+    # still run, ahead of the one the class now includes.
+    (instance_methods(false) + private_instance_methods(false)).each { |name| remove_method(name) }
 
     PAGE_ID = 'ecleanse-setup'
     # Stun maneuvers: only one of these may be on at a time.
