@@ -363,7 +363,7 @@ module EO
             setup.control(ui, :"#{key}_add", slot: '1', label: 'Add', **setup.off_for(off))
             setup.control(ui, :"#{key}_delete", slot: '2', label: 'Delete', **setup.off_for(off))
           end
-          setup.control(ui, key, headers: list_headers?(key), min_height: height, max_height: height, **setup.off_for(off))
+          setup.control(ui, key, headers: setup.list_headers?(key), min_height: height, max_height: height, **setup.off_for(off))
         end
       end
 
