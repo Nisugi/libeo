@@ -27,6 +27,8 @@
   Version Control:
   Major_change.feature_addition.bugfix
   v0.3.0 (2026-11-12)
+    - EO::Settings::ListForm: the ListSettingsForm window ebounty and eloot share (values to
+      and from the window, the Add/Delete lists, the controls); each script keeps its tabs
     - EO::Settings: the setup window check, the settings table (get_category, get_setting,
       fill_defaults, prune), the profile file and the ListSettingsForm helpers, from the e-scripts
     - EO.say, EO.word_wrap: the e-scripts' message and wrap (the Lich check and the

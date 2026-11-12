@@ -837,6 +837,8 @@ module EBounty
       ['heirloom_loot', 'Heirloom (loot)'], ['heirloom_search', 'Heirloom (search)'], ['kill_bandits', 'Kill Bandits'], ['rescue', 'Rescue'], ['skinning', 'Skinning']
     ].freeze
     BOOST_TYPES = %w[Any Kill Heirloom Skin Gem Escort Herb Dangerous Child Bandit].freeze
+    # Dropdowns: key => [[stored value, label], ...]; an unknown saved value shows the first.
+    SELECTS = { boost_type: BOOST_TYPES.map { |type| [type, type] } }.freeze
 
     # Columns of [stored value, label, spell that enables it].
     FORAGE_OPTIONS = [
@@ -1060,7 +1062,7 @@ module EBounty
     end
 
     extend EO::Settings::Registry
-    include EO::Settings::Controls
+    include EO::Settings::ListForm
 
     # True when Lich can open a WebUI window for this script.
     def self.available? = EO::Settings.available?(:ListSettingsForm)
@@ -1076,33 +1078,6 @@ module EBounty
 
     # ---------------------------------------------------------- lifecycle --
 
-    # Opens the window and waits. Save & Close returns the edited settings, which
-    # are saved to the profile; Cancel or closing the window discards them.
-    def start
-      result = form.show.wait
-      if result
-        apply(result)
-        EBounty.msg("info", " Setup saved.")
-      else
-        EBounty.msg("info", " Setup closed without saving.")
-      end
-    end
-
-    # The window, ready to show. Lists are edited on copies so Cancel discards them too.
-    def form
-      setup = self
-      @live = form_values
-      @drafts = LISTS.to_h { |key| [key, Array(@settings[key]).dup] }
-      @refs = {}
-      @form = EO::Settings.list_form.new(owner: @owner, id: PAGE_ID, title: title, values: @live, fields: fields,
-                                         lists: LISTS.to_h { |key| [key, list_spec(key)] },
-                                         normalize: ->(draft) { setup.normalize(draft) },
-                                         layout: ->(ui, field, save) { setup.layout(ui, field, save) },
-                                         props: { size: [900, 820], viewport: true })
-    end
-
-    attr_reader :drafts, :live
-
     def apply(result)
       @settings.merge!(result)
       EBounty.save_profile(@settings)
@@ -1112,79 +1087,22 @@ module EBounty
       "EBounty Setup v#{@script_ver}"
     end
 
+    def notify(text)
+      EBounty.msg("info", text)
+    end
+
     # ------------------------------------------------------ fields and values --
 
     def shown_keys
       @@categories[:general].keys - HIDDEN
     end
 
-    def member_key(key, value)
-      :"#{key}-#{value}"
+    # The profile dropdowns: an editable choice of the character's bigshot profiles.
+    def field_for(key)
+      { key: key, type: :select, editable: true, options: profile_options } if PROFILES.key?(key)
     end
 
-    def fields
-      list = shown_keys.reject { |key| LISTS.include?(key) || MEMBERS.key?(key) }.map do |key|
-        if SPINS.key?(key)
-          max, step, digits = SPINS[key]
-          { key: key, type: :number_input, min: 0, max: max, step: step, digits: digits, stepper_buttons: true, align: :start }
-        elsif key == :boost_type
-          { key: key, type: :select, options: BOOST_TYPES.map { |type| { value: type, label: type } } }
-        elsif PROFILES.key?(key)
-          { key: key, type: :select, editable: true, options: profile_options }
-        elsif boolean?(key)
-          { key: key, type: :checkbox, exclusive: EXCLUSIVE[key] }.compact
-        else
-          { key: key, type: :text_input }
-        end
-      end
-      MEMBERS.each { |key, items| items.each { |value, _| list << { key: member_key(key, value), type: :checkbox } } }
-      list
-    end
-
-    def form_values
-      shown_keys.each_with_object({}) do |key, values|
-        if MEMBERS.key?(key)
-          MEMBERS[key].each { |value, _| values[member_key(key, value)] = Array(@settings[key]).include?(value) }
-        elsif LISTS.include?(key)
-          values[key] = Array(@settings[key]).dup
-        elsif SPINS.key?(key)
-          values[key] = spin_value(key)
-        elsif key == :boost_type
-          values[key] = boost_value
-        elsif boolean?(key)
-          values[key] = @settings[key] ? true : false
-        else
-          values[key] = @settings[key].to_s
-        end
-      end
-    end
-
-    # A blank or unknown boost choice shows Any.
-    def boost_value
-      BOOST_TYPES.include?(@settings[:boost_type]) ? @settings[:boost_type] : 'Any'
-    end
-
-    # Turns the submitted window values back into settings. A number or choice the
-    # player left as displayed keeps its saved value, even one the window had to adjust.
-    def normalize(draft)
-      result = shown_keys.to_h do |key|
-        value =
-          if MEMBERS.key?(key)
-            known = MEMBERS[key].map(&:first)
-            (Array(@settings[key]) - known + known.select { |item| draft[member_key(key, item)] }).uniq.sort
-          elsif LISTS.include?(key)
-            Array(draft[key]).dup
-          elsif SPINS.key?(key)
-            number_setting(key, draft[key])
-          elsif key == :boost_type
-            draft[key] == boost_value ? @settings[key] : draft[key].to_s
-          elsif boolean?(key)
-            draft[key] ? true : false
-          else
-            draft[key].to_s.strip
-          end
-        [key, value]
-      end
+    def finish(result)
       result[:new_bounty_on_exit] = false unless result[:once_and_done]
       # The dropdown and its name setting have always held the same name.
       PROFILES.each { |profile, name| result[name] = result[profile] unless result[profile] == @settings[profile].to_s.strip }
@@ -1209,33 +1127,6 @@ module EBounty
 
     # ------------------------------------------------------------------ lists --
 
-    def list_spec(key)
-      setup = self
-      { columns: [{ key: 'entry', label: 'Entry', expand: true }],
-        rows: proc { setup.drafts[key].map { |entry| { 'entry' => entry.to_s } } }, value: proc { setup.drafts[key].dup },
-        add: ->(text) { setup.add_entry(key, text) }, delete: ->(index) { setup.delete_entry(key, index) },
-        clear_after_add: true }
-    end
-
-    def add_entry(key, text)
-      text = text.to_s.strip
-      return if text.empty?
-
-      list = @drafts[key]
-      list.push(text) unless list.map(&:to_s).include?(text)
-      sort_list(list)
-    end
-
-    def delete_entry(key, index)
-      @drafts[key].delete_at(index)
-      sort_list(@drafts[key])
-    end
-
-    def sort_list(list)
-      list.uniq!
-      list.sort_by!(&:to_s)
-    end
-
     # ---------------------------------------------------------- live gating --
 
     # Run one bounty and quit enables Get new bounty before quitting; turning it
@@ -1250,10 +1141,6 @@ module EBounty
     end
 
     # ------------------------------------------------------------- render --
-
-    def control(ui, key, **props)
-      @refs[key] = @field.call(ui, key, **props)
-    end
 
     def layout(ui, field, save)
       setup = self
@@ -1435,12 +1322,12 @@ module EBounty
     def render_exclusions(ui)
       setup = self
       ui.columns(key: 'exclusions-1', count: 2, gap: 8, row_align: :start) do
-        setup.render_list(ui, :creature_exclude, 'Creature Exclusions (?)', slot: '0', hint: "Creatures you don't want bounties for")
-        setup.render_list(ui, :herb_exclude, 'Herb Exclusions (?)', slot: '1', hint: "Herbs you don't want bounties for")
+        setup.render_list(ui, :creature_exclude, 'Creature Exclusions (?)', slot: '0', hint: "Creatures you don't want bounties for", tip: EXCLUSION_TIP)
+        setup.render_list(ui, :herb_exclude, 'Herb Exclusions (?)', slot: '1', hint: "Herbs you don't want bounties for", tip: EXCLUSION_TIP)
       end
       ui.columns(key: 'exclusions-2', count: 2, gap: 8, row_align: :start) do
-        setup.render_list(ui, :gem_exclude, 'Gem Exclusions (?)', slot: '0', hint: "Gems you don't want bounties for")
-        setup.render_list(ui, :location_exclude, 'Location Exclusions (?)', slot: '1', hint: "Locations you don't want bounties")
+        setup.render_list(ui, :gem_exclude, 'Gem Exclusions (?)', slot: '0', hint: "Gems you don't want bounties for", tip: EXCLUSION_TIP)
+        setup.render_list(ui, :location_exclude, 'Location Exclusions (?)', slot: '1', hint: "Locations you don't want bounties", tip: EXCLUSION_TIP)
       end
     end
 
@@ -1460,33 +1347,7 @@ module EBounty
       end
     end
 
-    def render_footer(ui, save)
-      setup = self
-      ui.divider(key: 'footer-div')
-      ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, margin: 6) do
-        ui.text(slot: '0', key: 'footer-text', wrap: true, content: 'Save & Close saves your settings. Cancel or closing the window discards your changes.')
-        ui.button(slot: '1', key: 'cancel', label: 'Cancel', tooltip: 'Close this window without saving.', on: { activate: ->(_ev) { setup.cancel } })
-        save.call(ui, slot: '2', variant: :primary, tooltip: 'Save the settings to your ebounty profile and close this window.')
-      end
-    end
-
     # --------------------------------------------------------- render parts --
-
-    def render_check(ui, key, label, slot: nil, off: false, tip: nil, on: nil)
-      control(ui, key, label: label, disabled: off, **place(slot), **tip_for(tip), **(on ? { on: on } : {}))
-    end
-
-    # Checkboxes over one array setting. items: [stored value, label]
-    def render_members(ui, key, items, columns: 4)
-      setup = self
-      items.each_slice(columns).with_index do |group, row|
-        ui.columns(key: "#{key}-#{row}", count: columns, gap: 8) do
-          group.each_with_index do |(value, label), column|
-            setup.control(ui, setup.member_key(key, value), slot: column.to_s, label: label)
-          end
-        end
-      end
-    end
 
     # Columns of checkboxes over one array setting, disabled when the character lacks them.
     def render_option_columns(ui, key, columns, weights:)
@@ -1506,37 +1367,6 @@ module EBounty
       setup = self
       ui.group(key: name, label: title) do
         rows.each { |key, label| setup.render_inline_entry(ui, key, label) }
-      end
-    end
-
-    def render_entry(ui, key, slot: nil, off: false, tip: nil, hint: nil)
-      control(ui, key, disabled: off, **place(slot), **tip_for(tip), **hint_for(hint))
-    end
-
-    # A text box with its label beside it instead of above it.
-    def render_inline_entry(ui, key, label, tip: nil, hint: nil)
-      setup = self
-      ui.columns(key: "#{key}-row", count: 2, weights: [1, 2], gap: 8, compact: true, row_align: :center) do
-        ui.text(slot: '0', key: "#{key}-label", content: label, **setup.tip_for(tip))
-        setup.render_entry(ui, key, slot: '1', tip: tip, hint: hint)
-      end
-    end
-
-    def render_spin(ui, key, label, slot: nil, tip: nil)
-      control(ui, key, label: label, **place(slot), **tip_for(tip))
-    end
-
-    # An add/delete list: entry box, Add and Delete in a row, above the table.
-    # The entry comes first because Add submits it.
-    def render_list(ui, key, title, slot: nil, hint: nil)
-      setup = self
-      ui.group(key: "#{key}-box", label: title, tooltip: EXCLUSION_TIP, **place(slot)) do
-        ui.columns(key: "#{key}-controls", count: 3, weights: [3, 1, 1], gap: 4, compact: true, row_align: :center) do
-          setup.control(ui, :"#{key}_entry", slot: '0', **setup.hint_for(hint))
-          setup.control(ui, :"#{key}_add", slot: '1', label: 'Add')
-          setup.control(ui, :"#{key}_delete", slot: '2', label: 'Delete')
-        end
-        setup.control(ui, key, headers: false, min_height: 220, max_height: 220)
       end
     end
 

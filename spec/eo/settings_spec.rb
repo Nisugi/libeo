@@ -114,4 +114,52 @@ RSpec.describe EO::Settings do
       expect(described_class.load_profile('eloot')).to eq(tip: 5)
     end
   end
+
+  describe EO::Settings::ListForm do
+    let(:form_class) do
+      Class.new do
+        extend EO::Settings::Registry
+        include EO::Settings::ListForm
+
+        const_set(:PAGE_ID, 'tester-setup')
+        const_set(:SPINS, { tip: [100, 5, 0] }.freeze)
+        const_set(:MEMBERS, { kinds: [%w[gem Gem], ['wand case', 'Wand case']] }.freeze)
+        const_set(:LISTS, %i[keep].freeze)
+        const_set(:SELECTS, { stance: [%w[none None], %w[offensive Offensive]] }.freeze)
+        const_set(:EXCLUSIVE, {}.freeze)
+        class_variable_set(:@@categories, {
+          general: { tip: { default: 0 }, kinds: { default: [] }, keep: { default: [] }, stance: { default: '' },
+                     note: { default: '' }, quiet: { default: false } }
+        })
+
+        def initialize(settings) = @settings = settings
+        def shown_keys = self.class.categories[:general].keys
+        def finish(result) = result.merge(finished: true)
+        def accept_entry?(_key, text) = text != 'refused'
+      end
+    end
+
+    it 'names member checkboxes without spaces' do
+      expect(form_class.new({}).member_key(:kinds, 'wand case')).to eq(:'kinds-wand_case')
+    end
+
+    it 'shows an unknown choice as the first, and keeps it when left alone' do
+      form = form_class.new({ stance: 'bogus', tip: 37, kinds: %w[gem custom], note: ' x ' })
+      values = form.form_values
+      expect(values).to include(stance: 'none', tip: 35, 'kinds-gem': true, 'kinds-wand_case': false, note: ' x ')
+      result = form.normalize(values.merge(note: ' y '))
+      expect(result).to include(stance: 'bogus', tip: 37, kinds: %w[custom gem], note: 'y', finished: true)
+    end
+
+    it 'adds and deletes list entries on a copy, refusing what the script refuses' do
+      form = form_class.new({ keep: %w[b] })
+      form.instance_variable_set(:@drafts, { keep: %w[b] })
+      form.add_entry(:keep, ' a ')
+      form.add_entry(:keep, 'refused')
+      form.add_entry(:keep, 'b')
+      expect(form.drafts[:keep]).to eq(%w[a b])
+      form.delete_entry(:keep, 0)
+      expect(form.list_rows(:keep)).to eq([{ 'entry' => 'b' }])
+    end
+  end
 end
