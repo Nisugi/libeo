@@ -301,13 +301,15 @@ module EHerbs
   # writes them out; Cancel or closing the window discards.
   # The class also backs ;eherbs settings (list), which now works without GTK.
   class Setup
+    # Lich keeps this class between runs in a session. A method a newer version
+    # dropped would otherwise still run, ahead of the one the class now includes.
+    # First, so it removes nothing this run defines.
+    (instance_methods(false) + private_instance_methods(false)).each { |name| remove_method(name) }
+
     attr_accessor :settings
 
     # Lich keeps this class between runs in a session; start each run clean.
     constants(false).each { |name| remove_const(name) }
-    # The same for methods: one a newer version dropped would otherwise
-    # still run, ahead of the one the class now includes.
-    (instance_methods(false) + private_instance_methods(false)).each { |name| remove_method(name) }
 
     PAGE_ID = 'eherbs-setup'
 
