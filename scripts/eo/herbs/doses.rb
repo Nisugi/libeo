@@ -5,7 +5,7 @@ module EO
     # How many doses each herb item has left, learned from what the game
     # says as herbs are eaten, measured, poured, bought and bundled. The
     # store is the `$eherbs_measure` hash, keyed by item id as a string,
-    # which other scripts have read for years. eherbs exec_str (259).
+    # which other scripts have read for years. eherbs exec_str.
     module Doses
       module_function
 

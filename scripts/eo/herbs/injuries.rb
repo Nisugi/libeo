@@ -12,7 +12,7 @@ module EO
 
       AREAS = %w[head neck torso limbs nerves].freeze
 
-      # @return [Boolean] wounded, scarred or short of health enough to heal (3537)
+      # @return [Boolean] wounded, scarred or short of health enough to heal
       def hurt?
         AREAS.any? { |a| Wounds.send(a).positive? || Scars.send(a).positive? } || (Char.health + 7) < Char.max_health
       end
@@ -73,7 +73,7 @@ module EO
         nil
       end
 
-      # Which wound types the character has, by name (3355).
+      # Which wound types the character has, by name.
       #
       # @return [Hash{String => Boolean}]
       def status
@@ -107,7 +107,7 @@ module EO
       end
 
       # Another character's wounds from APPRAISE, as herb types to pour on
-      # them. The bleeding wounds first; with +full+, the rest (1397).
+      # them. The bleeding wounds first; with +full+, the rest.
       #
       # @param lines [Array<String>] the APPRAISE answer
       # @param full [Boolean]
@@ -142,7 +142,7 @@ module EO
       end
 
       # An escort client's wounds from LOOK, as the herbs to hand over, in
-      # order (1529).
+      # order.
       ESCORT_INJURIES = {
         /severe head trauma and bleeding from the ears/                        => ['major head wound', 'major head wound', 'minor head wound'],
         /minor lacerations about the head and a possible mild concussion/      => ['major head wound', 'minor head wound'],

@@ -3,11 +3,11 @@
 module EO
   module Guild
     # When a task is done enough to stop hunting and go to town. ebounty
-    # set_eval (2133 in 1.13.0) built this as a Ruby string for bigshot to
+    # set_eval built this as a Ruby string for bigshot to
     # eval each tick; here it is a Rule the driver evaluates with what the
     # game says now, and a driver that still needs a string wraps the call.
-    # Also the skin and gem counting that skin_bounty (3585) and gem_bounty
-    # (3390) shared with it.
+    # Also the skin and gem counting that skin_bounty and gem_bounty
+    # shared with it.
     module Completion
       module_function
 

@@ -16,7 +16,7 @@ module EO
     MAGIC_GLOBES = /silvery blue globe|spiraling ghostly rift|chaotic spatial anomaly/i
     UNTARGETABLE_GLOBES = /silvery blue globe|spiraling ghostly rift/
     RUNESTONES = /pale hovering runestone/i
-    # Clouds a dispel does not answer. The acidic mist takes a breeze (912, 612).
+    # Clouds a dispel does not answer. The acidic mist takes a breeze.
     INVALID_CLOUDS = ['cloud of acidic mist', 'cloud of thick ethereal fog'].freeze
     ACID_MIST = 'cloud of acidic mist'
     # The wounds the Sigil of Determination is worth casting for.

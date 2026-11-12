@@ -5,7 +5,7 @@ module EO
     module Escort
       # The edges of the escort roads that the map's own wayto cannot walk
       # with a client in tow, and how to take each. escortgo2 1.0.5
-      # better_miniscript (454-1393), one entry per "from,to" pair.
+      # better_miniscript, one entry per "from,to" pair.
       #
       # Each entry is [kind, argument]; Walk#take_route runs it:
       #   :climb      a climb or go, hiding again after

@@ -4,8 +4,8 @@ module EO
   module Herbs
     # Healing with herbs: the character's own wounds from the sack, a dead
     # player's by pouring potions, an escort client's by handing herbs
-    # over. eherbs use_herbs (1874), find_herb (1830), cast_spells (1239),
-    # track_missing (1855), deader (1433), escort (1507).
+    # over. eherbs use_herbs, find_herb, cast_spells,
+    # track_missing, deader, escort.
     module Heal
       module_function
 
@@ -29,7 +29,7 @@ module EO
       # :must_take (no_get but the herb has to be picked up).
       Result = Struct.new(:outcome, :missing, keyword_init: true)
 
-      # The herb in the sack for a type, by the policy's preferences. (1830)
+      # The herb in the sack for a type, by the policy's preferences.
       #
       # @param contents [Hash{Symbol => Array<GameObj>}] from Sack#contents
       # @param type [String]
@@ -45,7 +45,7 @@ module EO
       end
 
       # The spells that make herbs work better: Sigil of Mending, Song of
-      # Tonis, the yierka aspect. (1239)
+      # Tonis, the yierka aspect.
       #
       # @param policy [Policy]
       # @return [void]
@@ -68,7 +68,7 @@ module EO
         end
       end
 
-      # The areas a missing herb type covers, so the next type is asked for. (1855)
+      # The areas a missing herb type covers, so the next type is asked for.
       #
       # @param type [String]
       # @return [Array<String>]
@@ -138,7 +138,7 @@ module EO
         Result.new(outcome: :healed, missing: missing)
       end
 
-      # Heal a dead player by pouring potions on them, APPRAISE between. (1433)
+      # Heal a dead player by pouring potions on them, APPRAISE between.
       #
       # @param character [GameObj] the player
       # @param sack [Sack]
@@ -177,7 +177,7 @@ module EO
         end
       end
 
-      # Hand an escort client the herbs for what LOOK shows. (1507)
+      # Hand an escort client the herbs for what LOOK shows.
       #
       # @param npc [GameObj] the client
       # @param sack [Sack]

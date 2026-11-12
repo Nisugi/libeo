@@ -3,7 +3,7 @@
 module EO
   module Guild
     # Heirloom search tasks: wander the task's area, SEARCH every room, stow
-    # the heirloom when it turns up. ebounty heirloom_search (3449 in 1.13.0).
+    # the heirloom when it turns up. ebounty heirloom_search.
     module Heirloom
       module_function
 
@@ -81,7 +81,7 @@ module EO
       end
 
       # The helper spells foraging and heirloom searching share, each behind
-      # an option. From ebounty forage_bounty (3140) and heirloom_search (3490).
+      # an option. From ebounty forage_bounty and heirloom_search.
       module Spells
         module_function
 

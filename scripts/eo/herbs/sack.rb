@@ -4,9 +4,9 @@ module EO
   module Herbs
     # The container the herbs live in: finding it, opening it, what is in
     # it by form, putting herbs in and taking them out, and the
-    # Survivalist's Kit with its doses and distiller. eherbs Inventory
-    # (2129), find_herbsack (3036), determine_survival_kit (2939),
-    # distill (2984), store_herb (3383).
+    # Survivalist's Kit with its doses and distiller. eherbs Inventory,
+    # find_herbsack, determine_survival_kit,
+    # distill, store_herb.
     class Sack
       # Raised when the sack will not take another item.
       class Full < StandardError; end
@@ -123,7 +123,7 @@ module EO
       end
 
       # The doses to keep of each type, scaled to a percent of capacity: a
-      # kit's by its tier, an ordinary sack's from the defaults (2967).
+      # kit's by its tier, an ordinary sack's from the defaults.
       #
       # @param percent [Numeric] 0 to 100
       # @return [Hash{String => Integer}]
@@ -138,7 +138,7 @@ module EO
       end
 
       # Open the sack if it is closed, remembering to close it after when
-      # we were the one to open it. (2385)
+      # we were the one to open it.
       #
       # @return [Symbol] :open, :locked, or :empty
       def open
@@ -161,7 +161,7 @@ module EO
 
       # The herbs in the sack, by form: drinkable, edible, all. A carried
       # sack is read from what Lich knows is inside; a kit lists its doses;
-      # a room container is looked at by its preposition. (2261)
+      # a room container is looked at by its preposition.
       #
       # @return [Hash{Symbol => Array<GameObj>}]
       # @raise [Guild::Error] for a locked room container
@@ -185,7 +185,7 @@ module EO
       end
 
       # A kit's LOOK lists DOSEs and TINCTUREs with counts; the counts go to
-      # Doses and the items come back by form. (2427)
+      # Doses and the items come back by form.
       def kit_contents
         result = EO.command("look in ##{id}", Regexp.new(format(KIT_CONTENTS.source, id)), silent: true, quiet: true).join(' ')
         items = { drinkable: [], edible: [], all: [] }
@@ -253,7 +253,7 @@ module EO
         result =~ Table::DRINKABLE ? true : false
       end
 
-      # Make a hand free, preferring the one a wound has not crippled. (2150)
+      # Make a hand free, preferring the one a wound has not crippled.
       def free_hand
         right_ok = [Wounds.rightArm, Wounds.rightHand, Scars.rightArm, Scars.rightHand].max < 3
         left_ok = [Wounds.leftArm, Wounds.leftHand, Scars.leftArm, Scars.leftHand].max < 3
@@ -279,7 +279,7 @@ module EO
       end
 
       # A kit's distiller: point it at a solid herb that has no liquid
-      # form yet, else at the liquid that is lowest. (2984)
+      # form yet, else at the liquid that is lowest.
       #
       # @return [String, nil] what the extractor was set to, nil when nothing was done
       def distill

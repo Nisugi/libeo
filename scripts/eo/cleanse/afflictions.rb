@@ -5,9 +5,9 @@ module EO
     # What is wrong with the character, and the cure: poison and disease
     # cast away, magical debuffs dispelled, a root or press retreated from,
     # a stun or a web broken. Each answers what it did. ecleanse
-    # remove_poison (1511), remove_disease (1448), remove_magical (1487),
-    # remove_grounded (1464), remove_stun (1540), remove_web_bound (1594),
-    # stunman_perform (1666), settle_room (1645).
+    # remove_poison, remove_disease, remove_magical,
+    # remove_grounded, remove_stun, remove_web_bound,
+    # stunman_perform, settle_room.
     module Afflictions
       module_function
 

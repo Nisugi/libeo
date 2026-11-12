@@ -4,9 +4,9 @@ module EO
   module Cleanse
     # What creatures leave in a room: clouds, magic globes, webs and
     # Onslaught runestones, found in the loot and cleared by spell, by Spell
-    # Cleave or Spell Thieve, or by breaking. ecleanse avoid_webs (703),
-    # avoid_globe (733), avoid_runestone (765), dispel_cloud (836), and the
-    # main loop's finders (814-820).
+    # Cleave or Spell Thieve, or by breaking. ecleanse avoid_webs,
+    # avoid_globe, avoid_runestone, dispel_cloud, and the
+    # main loop's finders.
     module Hazards
       module_function
 

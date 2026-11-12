@@ -4,10 +4,10 @@ module EO
   # The hands and what moves through them: freeing a hand, taking an item
   # into one, wearing, putting into a container, and the READY list's
   # weapons. Every outcome comes back as a word for the driver to act on;
-  # nothing here stops the script. eloot Inventory 2.15.0: free_hand
-  # (3978), free_hands (4001), drag (3901), wear (3956), store_item
-  # (4277), stow_ready_list (4350), return_ready_list (4108),
-  # ready_item_key (3812), fix_item_key (2797).
+  # nothing here stops the script. eloot Inventory 2.15.0: free_hand,
+  # free_hands, drag, wear, store_item,
+  # stow_ready_list, return_ready_list,
+  # ready_item_key, fix_item_key.
   module Hands
     module_function
 

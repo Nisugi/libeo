@@ -4,8 +4,8 @@ module EO
   # Wandering a hunting area: one step anywhere, the Elemental Confluence
   # (whose exits the map does not know), choosing a creature to stop for,
   # and learning which creatures TARGET accepts. The plain step is
-  # EO.wander in travel.rb. ewander 2.0.1: Targeting (120), Movement
-  # (179), the target-random loop (473).
+  # EO.wander in travel.rb. ewander 2.0.1: Targeting, Movement,
+  # the target-random loop.
   module Wander
     module_function
 

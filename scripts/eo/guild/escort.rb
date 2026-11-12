@@ -21,7 +21,7 @@ module EO
         'area just inside the Amaranth Gate'                   => ["Ta'Vaalor", 3483],
       }.freeze
 
-      # Where the client is handed over in each destination town (186).
+      # Where the client is handed over in each destination town.
       DROPOFFS = {
         "Wehnimer's Landing" => [223],
         'Icemule Trace'      => [2412],
@@ -38,7 +38,7 @@ module EO
       }.freeze
 
       # Silver to carry for the carts and ferries on the way back to the
-      # start town (199). A driver that knows where it goes next can pass
+      # start town. A driver that knows where it goes next can pass
       # its own.
       TRAVEL_COST = {
         "Wehnimer's Landing" => { 'Icemule Trace' => 0, 'Zul Logoth' => 20, 'Solhaven' => 0, "Ta'Vaalor" => 4020, "Ta'Illistim" => 4020 },
@@ -130,7 +130,7 @@ module EO
 
       # Hearing an ambush: the client's cry, a creature leaping out, a trap
       # springing. Ours until the next room, so another party's bandits
-      # are not poached. escortgo2's exec script (284).
+      # are not poached. escortgo2's exec script.
       class Ambush
         attr_reader :mine, :staggered
 

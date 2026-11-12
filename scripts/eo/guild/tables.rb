@@ -10,11 +10,11 @@ module EO
     class Error < StandardError; end
 
     # Game facts: where the guild's people are and what they say. From
-    # ebounty Data (938-1240).
+    # ebounty Data.
     module Tables
       module_function
 
-      # Lich's Bounty task type to ebounty's bounty_types setting name (966).
+      # Lich's Bounty task type to ebounty's bounty_types setting name.
       CROSSWALK = {
         bandit_assignment: 'kill_bandits',
         bandit: 'kill_bandits',
@@ -34,10 +34,10 @@ module EO
         skin: 'skinning',
       }.freeze
 
-      # Every bounty_types name a settings file may list (984).
+      # Every bounty_types name a settings file may list.
       BOUNTY_TYPES = %w[boss_culling culling heirloom_loot skinning heirloom_search foraging rescue escort kill_bandits gem_collecting].freeze
 
-      # What the taskmaster says to ASK ABOUT BOUNTY (986).
+      # What the taskmaster says to ASK ABOUT BOUNTY.
       TASKMASTER_RESPONSES = Regexp.union(
         /The local gem dealer, .*, has an order to fill and wants our help./,
         /The local furrier .* has an order to fill and wants our help./,
@@ -51,7 +51,7 @@ module EO
         /Who are you trying to ask/
       ).freeze
 
-      # What a guard says to ASK ABOUT BOUNTY (1099).
+      # What a guard says to ASK ABOUT BOUNTY.
       GUARD_RESPONSES = Regexp.union(
         /suppress bandit activity|bandits you encounter/,
         /particularly dangerous|cull their numbers|(?!.*bandit)suppress .* activity/,
@@ -63,10 +63,10 @@ module EO
         /You have completed your task/
       ).freeze
 
-      # A guard's "nothing for you" answers, which send the asker to the next guard room (2770).
+      # A guard's "nothing for you" answers, which send the asker to the next guard room.
       GUARD_NOTHING = /I don't have any tasks for you right now|Try bugging me later|Who are you trying to ask\?/.freeze
 
-      # Who counts as a guard in an advguard room (2738). River's Rest asks the purser.
+      # Who counts as a guard in an advguard room. River's Rest asks the purser.
       GUARD_NAMES = /(?:guard|sergeant|guardsman|sentry|tavernkeeper|alchemist|Malovor)/i.freeze
 
       FURRIER_NAMES = Regexp.union(/Bramblefist/i, /Delosa/i, /dwarven clerk/i, /furrier/i, /patchwork flesh merchant/i).freeze
@@ -79,13 +79,13 @@ module EO
                                      /old Mistress Lomara/i, /scarred Agarnil kris/i, /Sparkfinger/i,
                                      /spectral quartermaster/i).freeze
 
-      # The herbalist's room in each town, as uids (1023). No map tag marks them.
+      # The herbalist's room in each town, as uids. No map tag marks them.
       HERBALIST_ROOM_UIDS = %w[
         u4043601 u1015 u3003056 u14103400 u13104200 u4740011
         u2101052 u13010004 u7118358 u7503253 u3201291 u7150621
       ].freeze
 
-      # The town square uid for each town name a task can carry (1124).
+      # The town square uid for each town name a task can carry.
       # Contempt (Sailor's Grief) differs between GS4 and GSF, see .town_uid.
       TOWN_UIDS = {
         'Icemule Trace'      => 'u4042150',
@@ -102,21 +102,21 @@ module EO
         'Cold River'         => 'u7503205',
       }.freeze
 
-      # Sailor's Grief: the taskmaster is First Mate Seldit, who wanders these rooms (2632).
+      # Sailor's Grief: the taskmaster is First Mate Seldit, who wanders these rooms.
       SAILORS_GRIEF_UIDS = [
         7150601, 7150602, 7150603, 7150604, 7150605, 7150606, 7150607, 7150608, 7150609, 7150610,
         7150611, 7150612, 7150613, 7150614, 7150615, 7150616, 7150617, 7150621, 7150622,
       ].freeze
 
-      # Hinterwilds: the guild's taskmaster is Halfwhistle (2650).
+      # Hinterwilds: the guild's taskmaster is Halfwhistle.
       HINTERWILDS_GUILD_UID = 7503207
 
-      # Hinterwilds: the tavernkeeper guard moves, so ask the alchemist instead (2727).
+      # Hinterwilds: the tavernkeeper guard moves, so ask the alchemist instead.
       HINTERWILDS_MOVING_GUARD_UIDS = %w[7503252 7503251].freeze
       HINTERWILDS_GUARD_ROOM = 'u7503253'
 
       # Escort tasks: the pickup wording and the destination town, to a trip name
-      # such as "landing_to_icemule" that the escort_types setting lists (2995).
+      # such as "landing_to_icemule" that the escort_types setting lists.
       ESCORT_PICKUPS = {
         'the area just inside the Sapphire Gate'                   => 'illy',
         'the area just inside the North Gate'                      => 'landing',
@@ -135,7 +135,7 @@ module EO
         "Ta'Illistim"        => 'illy',
       }.freeze
 
-      # What FORAGE answers (1110).
+      # What FORAGE answers.
       FORAGE_RESULT = Regexp.union(
         /^You begin to forage around when suddenly you feel a burning sensation in your hand\.$/,
         /^You begin to forage around when your hand comes into contact with something that stabs you in the finger\.$/,
@@ -148,17 +148,17 @@ module EO
         /^As you forage around you suddenly feel a sharp pain/
       ).freeze
 
-      # A forage that hurt (1115).
+      # A forage that hurt.
       FORAGE_INJURY = Regexp.union(
         /^You begin to forage around when your hand comes into contact with something that stabs you in the finger./,
         /^As you forage around you suddenly feel a sharp pain in your/,
         /suddenly you feel a burning sensation in your hand/
       ).freeze
 
-      # Picking something up worked, or could not (950).
+      # Picking something up worked, or could not.
       GET_RESULT = /^You (?:shield the opening of .*? from view as you |discreetly |carefully |deftly )?(?:remove|draw|grab|reach|slip|tuck|retrieve|already have|unsheathe|detach|swap)|^Get what\?$|^Why don't you leave some for others\?$|^You need a free hand|^You already have that/.freeze
 
-      # Putting something away worked, or could not (951).
+      # Putting something away worked, or could not.
       PUT_RESULT = /^You (?:put|(?:discreetly )?tuck|attach|toss|attempt to shield your|place|.* place|slip|wipe off the blade and sheathe|absent-mindedly drop|carefully add|find an incomplete bundle|untie your drawstring pouch)|^The .+ is already a bundle|^Your bundle would be too large if you if you tried to add that|^The .+ is too large to be bundled\.|^As you place your .+ inside your .+, you notice another .+ inside the .+ and carefully arrange the two .+ into a neat bundle\.|If you wish to continue, throw the item away again within fifteen seconds|you feel pleased with yourself at having cleaned up the surrounding area|over your shoulder|two items in that location|wear three functional items|^Your .*? won't fit in .*?\.$/.freeze
 
       # @param town [String] a town name as the Bounty parser reports it

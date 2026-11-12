@@ -5,8 +5,8 @@ module EO
     # Things done to a character that are fixed somewhere: a hive trap
     # searched out and disarmed where it went off, the itchy curse waited
     # out in a safe room, the Sanctum's infected wound cleaned at the vat.
-    # ecleanse hive_search (930), hive_traps_apparatus (964),
-    # hive_traps_ground (997), itchy_curse (1010), use_vat (1737).
+    # ecleanse hive_search, hive_traps_apparatus,
+    # hive_traps_ground, itchy_curse, use_vat.
     module Traps
       module_function
 

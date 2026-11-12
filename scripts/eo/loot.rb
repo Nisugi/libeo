@@ -2,8 +2,8 @@
 
 module EO
   # What on the ground is loot, and which loot a character wants. eloot
-  # 2.15.0: the reject lists in Data (726-776), Loot reject_invalid_loot
-  # (6091), should_grab_item? (6109).
+  # 2.15.0: the reject lists in Data, Loot reject_invalid_loot,
+  # should_grab_item?.
   module Loot
     module_function
 

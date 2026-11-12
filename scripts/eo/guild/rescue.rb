@@ -5,7 +5,7 @@ module EO
     # Rescue tasks: finding the child, where it lives, walking it to a guard
     # with a disabler ready for whatever shows up, and the two things that
     # go wrong when another script does the walk. ebounty child_found (2923
-    # in 1.13.0) and child_bounty (2940); echild 1.20.4 (the walk: 280-519).
+    # in 1.13.0) and child_bounty; echild 1.20.4 (the walk: 280-519).
     module Rescue
       module_function
 

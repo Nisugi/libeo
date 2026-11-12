@@ -10,7 +10,7 @@ module EO
     # location; "Do Not Buy" for the bulk forms, "Forageable", "Skinnable"
     # and "Alchemical" for what no shop sells), its name as the game says
     # it, the wound type it cures, the short name a shop menu uses, and the
-    # doses a shop-bought one holds. eherbs known_herbs (785).
+    # doses a shop-bought one holds. eherbs known_herbs.
     module Table
       module_function
 
@@ -302,7 +302,7 @@ module EO
 
       # Short names of the "major blood" (yabathilium-class) restoratives.
       # Every one still has type 'blood'; the list only splits counting and
-      # stocking when a driver asks for it. (198)
+      # stocking when a driver asks for it.
       MAJOR_BLOOD = ['yabathilium fruit', 'tincture of yabathilium', 'Bloody Krolvin ale', "Olak's Ol'style ale",
                      'green mushroom potion', 'sassafras tea'].freeze
 
@@ -312,20 +312,20 @@ module EO
       # What cannot be bundled or poured together.
       CANT_BUNDLE = /tart|feather|special|blubber|pie|porridge|soup|fruit/i
 
-      # The wound types, in the order a sack is filled (1617).
+      # The wound types, in the order a sack is filled.
       TYPES = ['blood', 'major head wound', 'minor head wound', 'major head scar', 'minor head scar', 'major organ wound',
                'minor organ wound', 'major organ scar', 'minor organ scar', 'missing eye', 'major limb wound',
                'minor limb wound', 'major limb scar', 'minor limb scar', 'severed limb', 'major nerve wound',
                'minor nerve wound', 'major nerve scar', 'minor nerve scar'].freeze
 
-      # Types the eaten herbs cover and the ones only potions do, for stocking (1673).
+      # Types the eaten herbs cover and the ones only potions do, for stocking.
       HERB_TYPES = ['major head wound', 'minor head scar', 'major organ wound', 'minor organ wound', 'major limb wound',
                     'minor limb wound', 'major limb scar', 'minor limb scar', 'severed limb', 'minor nerve wound',
                     'major nerve scar', 'minor nerve scar'].freeze
       POTION_TYPES = ['major head scar', 'minor head wound', 'major nerve wound', 'minor organ scar', 'major organ scar',
                       'missing eye'].freeze
 
-      # Doses to keep of each type when stocking a sack (150).
+      # Doses to keep of each type when stocking a sack.
       DEFAULT_DOSES = {
         'major head scar' => 6, 'minor head wound' => 4, 'major nerve wound' => 4, 'minor organ scar' => 4,
         'major organ scar' => 6, 'missing eye' => 7, 'blood' => 50, 'minor blood' => 50, 'major blood' => 20,
@@ -334,7 +334,7 @@ module EO
         'severed limb' => 25, 'minor nerve wound' => 25, 'major nerve scar' => 25, 'minor nerve scar' => 25,
       }.freeze
 
-      # The wound areas Lich reports, to the word the herb types use (488).
+      # The wound areas Lich reports, to the word the herb types use.
       AREAS = { 'head' => 'head', 'neck' => 'head', 'torso' => 'organ', 'limbs' => 'limb', 'nerves' => 'nerve' }.freeze
 
       # @param herb [Hash] a KNOWN entry

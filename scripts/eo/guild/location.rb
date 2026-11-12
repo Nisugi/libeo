@@ -3,8 +3,8 @@
 module EO
   module Guild
     # A task's location name to the rooms a hunt may use: a start room and
-    # the boundary around them. ebounty find_location (2791),
-    # limit_crawl_area (2836).
+    # the boundary around them. ebounty find_location,
+    # limit_crawl_area.
     module Location
       module_function
 

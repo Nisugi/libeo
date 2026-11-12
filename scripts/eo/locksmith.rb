@@ -4,10 +4,10 @@ module EO
   # Getting boxes opened: the town locksmith, who opens a locked box in
   # hand for a fee, and the locksmith pool, where boxes are left with a tip
   # for players to open and collected when ready. eloot 2.15.0 Sell:
-  # locksmith (7684), locksmith_open (7727), pool_box_order (7804),
-  # locksmith_pool (7808), pool_return (7903), locksmith_pool_count
-  # (7961), pool_list_counts (7982), locksmith_determine_tip (7991),
-  # locksmith_tip (8003), town_openable? (8149).
+  # locksmith, locksmith_open, pool_box_order,
+  # locksmith_pool, pool_return, locksmith_pool_count,
+  # pool_list_counts, locksmith_determine_tip,
+  # locksmith_tip, town_openable?.
   module Locksmith
     module_function
 

@@ -3,9 +3,9 @@
 module EO
   # Things done to one item: throwing it away unless it is marked, phasing
   # a box, lifting a curse, and the disk that follows the character.
-  # eloot 2.15.0: marked_unsellable? (3285), toss (3303), box_phase
-  # (3129), box_unphase (3140), decurse (3160), disk_usage (2751),
-  # wait_for_disk (3767), disk_contents (3803).
+  # eloot 2.15.0: marked_unsellable?, toss, box_phase,
+  # box_unphase, decurse, disk_usage,
+  # wait_for_disk, disk_contents.
   module Items
     module_function
 
@@ -41,7 +41,7 @@ module EO
       Hands.holding?(obj) ? :kept : :tossed
     end
 
-    # Phase a box (704) so it weighs nothing, unless it is enruned or mithril.
+    # Phase a box so it weighs nothing, unless it is enruned or mithril.
     #
     # @param box [GameObj]
     # @return [Boolean] whether a cast was made

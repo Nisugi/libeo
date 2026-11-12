@@ -6,7 +6,7 @@ module EO
   ROUNDTIME = /(?:Roundtime:|\.\.\.wait) (\d+) [Ss]ec(?:onds)?\./i
 
   # Send a command and collect its answer, re-sending after a roundtime
-  # refusal. ebounty get_command (629).
+  # refusal. ebounty get_command.
   #
   # @param command [String]
   # @param regex [Regexp] what ends the answer
@@ -26,7 +26,7 @@ module EO
   end
 
   # Send a command and return the one line that answers it, re-sending after
-  # a roundtime refusal. ebounty get_res (648).
+  # a roundtime refusal. ebounty get_res.
   #
   # @param command [String]
   # @param regex [Regexp] what answers the command
@@ -42,7 +42,7 @@ module EO
   end
 
   # Wait out cast and hard roundtime with a short settle either side, the way
-  # every e-script does between commands. ebounty wait_rt (921).
+  # every e-script does between commands. ebounty wait_rt.
   #
   # @return [void]
   def self.settle

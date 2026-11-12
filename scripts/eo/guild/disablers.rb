@@ -4,9 +4,9 @@ module EO
   module Guild
     # Choosing and casting a disabling spell on whatever is in the room,
     # while something that cannot fight (a rescued child, an escort client)
-    # is being walked somewhere. echild 1.20.4: DISABLERS (187),
-    # echild_can_cast (155), check_justice (134), find_best_disabler (208),
-    # the target-and-cast step of the walk (374).
+    # is being walked somewhere. echild 1.20.4: DISABLERS,
+    # echild_can_cast, check_justice, find_best_disabler,
+    # the target-and-cast step of the walk.
     module Disablers
       module_function
 

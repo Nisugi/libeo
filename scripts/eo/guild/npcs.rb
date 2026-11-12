@@ -3,8 +3,8 @@
 module EO
   module Guild
     # Finding the guild's people: an NPC in the room, the taskmaster, the
-    # guards of a town. ebounty find_npc (2670), find_taskmaster (2629),
-    # guard_list (2698).
+    # guards of a town. ebounty find_npc, find_taskmaster,
+    # guard_list.
     module NPCs
       module_function
 
@@ -58,7 +58,7 @@ module EO
 
       # The advguard rooms that belong to a town and can be walked to from its
       # square. Two tasks name their guard by a phrase the Bounty parser does
-      # not turn into a town yet; they are mapped here (2701).
+      # not turn into a town yet; they are mapped here.
       #
       # @param town [String] the task's town
       # @param bounty_text [String] the task text, for the two unparsed guards

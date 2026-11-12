@@ -5,9 +5,9 @@ module EO
   # jar's label, whether it is the kind being hoarded, reading a jar, the
   # stash's inventory by looking or from a premium locker's manifest,
   # putting an item in a jar and shaking one out. eloot 2.15.0 Hoard:
-  # check_type (4422), normalize_name (4447), build_inventory (4860),
-  # build_premium_locker_inventory (4899), filter_inventory (4975),
-  # shake (5142), check_jar (5187), store_items (5288).
+  # check_type, normalize_name, build_inventory,
+  # build_premium_locker_inventory, filter_inventory,
+  # shake, check_jar, store_items.
   module Hoard
     module_function
 

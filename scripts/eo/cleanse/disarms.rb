@@ -7,9 +7,9 @@ module EO
     # A weapon knocked away, webbed, floated off or turned into a creature,
     # and getting it back. The disarms not yet recovered are kept in
     # UserVars.last_disarm, so a death or a restart does not lose one.
-    # ecleanse recover (1211), recover_weapon_webbing (1390),
-    # telekinetic_recover (1698), sanctum_recover (1620), recovered? (1074),
-    # the disarm list (1098-1209).
+    # ecleanse recover, recover_weapon_webbing,
+    # telekinetic_recover, sanctum_recover, recovered?,
+    # the disarm list.
     module Disarms
       module_function
 

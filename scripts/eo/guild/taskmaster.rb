@@ -4,9 +4,9 @@ module EO
   module Guild
     # Talking to the taskmaster: getting, turning in, removing and
     # expediting a task; boosts, vouchers and the cooldown. ebounty
-    # ask_taskmaster (2564 in 1.13.0), bounty_get (2905), bounty_remove
-    # (2911), check_boost (2423), check_voucher (2439),
-    # wait_until_next_bounty_available (3646), bounty_change (385).
+    # ask_taskmaster, bounty_get, bounty_remove,
+    # check_boost, check_voucher,
+    # wait_until_next_bounty_available, bounty_change.
     module Taskmaster
       module_function
 

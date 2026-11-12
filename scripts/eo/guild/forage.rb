@@ -4,8 +4,8 @@ module EO
   module Guild
     # Herb tasks: where an herb grows, what it is called once picked, the
     # gathering loop, and giving the herbs to the herbalist. ebounty
-    # forage_find (3044 in 1.13.0), find_herb_stow_list (3092),
-    # forage_bounty (3103), forage_turnin (3282), forage_return (3329).
+    # forage_find, find_herb_stow_list,
+    # forage_bounty, forage_turnin, forage_return.
     module Forage
       module_function
 
@@ -19,13 +19,13 @@ module EO
         def use?(key) = options.include?(key.to_s)
       end
 
-      # The task names some herbs by a form that FORAGE does not (3050).
+      # The task names some herbs by a form that FORAGE does not.
       TASK_NAMES = {
         /ayana (weed|lichen|berry|root)/    => 'ayana leaf',
         /ayana'al (weed|lichen|berry|root)/ => "ayana'al leaf",
       }.freeze
 
-      # The task shortens some mushroom names; the item in the sack is the full one (3093).
+      # The task shortens some mushroom names; the item in the sack is the full one.
       STOW_NAMES = {
         'white mushroom'    => 'white hook mushroom',
         'trafel mushroom'   => 'black trafel mushroom',
@@ -198,7 +198,7 @@ module EO
         end
       end
 
-      # Assume the yierka form for 650 when the policy wants it (3179).
+      # Assume the yierka form for 650 when the policy wants it.
       def yierka(policy)
         return unless policy.use?(:use_650) && !Map.current.tags.include?('meta:nomagic')
         if Spell[650].known? && Spell[650].affordable? && !Spell[650].active? && !Spell[9039].active?
@@ -209,7 +209,7 @@ module EO
         end
       end
 
-      # A picked-over room can be renewed by evoking 604 (3235).
+      # A picked-over room can be renewed by evoking 604.
       #
       # @return [Boolean] whether it was evoked
       def evoke_bounty?(policy)

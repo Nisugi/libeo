@@ -3,7 +3,7 @@
 module EO
   # Skinning the dead: which need a blunt tool, getting ready to skin,
   # and the skinning itself with what the game answers. eloot 2.15.0 Loot
-  # skin_obj_types (6221) and skin (6335).
+  # skin_obj_types and skin.
   module Skinning
     module_function
 

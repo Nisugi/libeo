@@ -5,7 +5,7 @@ module EO
     # What a character will take from the guild: the task types and the
     # exclusions, plus the boost and voucher choices. Built by the driver
     # from its own settings; the library reads nothing else. ebounty
-    # check_removal (2455 in 1.13.0) is `reject?`.
+    # check_removal is `reject?`.
     TaskPolicy = Struct.new(:types, :creature_exclude, :herb_exclude, :gem_exclude, :location_exclude,
                             :remove_heirloom, :use_boosts, :boost_type, :use_vouchers, :extra_skin,
                             keyword_init: true) do

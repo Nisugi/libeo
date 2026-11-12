@@ -3,9 +3,9 @@
 module EO
   # Towns and their shops: which shop to walk to and whether to go at all,
   # the region a bounty's town shares with the character, Four Winds Isle,
-  # the trash can and the locksmith pool's worker. eloot 2.15.0: Region
-  # (2682), fwi? (3359), shop_unavailable_in_town? (3372), nearest_shop
-  # (3395), fwi_return (3401), find_trash (3268), find_worker (3328).
+  # the trash can and the locksmith pool's worker. eloot 2.15.0: Region,
+  # fwi?, shop_unavailable_in_town?, nearest_shop,
+  # fwi_return, find_trash, find_worker.
   module Town
     module_function
 

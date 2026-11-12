@@ -2,7 +2,7 @@
 
 module EO
   # Selling one item at a shop and what the shop says back. eloot 2.15.0
-  # Sell sell_item (8351).
+  # Sell sell_item.
   module Selling
     module_function
 

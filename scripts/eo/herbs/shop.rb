@@ -3,14 +3,14 @@
 module EO
   module Herbs
     # The herbalist: the menu, prices, buying, bundling what was bought,
-    # and stocking a sack up to its dose targets. eherbs read_menu (3270),
-    # check_prices (1261), buy_herb (1197), bundle_all (1074), bundle_herb
-    # (1144), get_current_stock (2172), stock_requested_herbs (1734),
-    # stock_storage (1815), fill_herbs (1600).
+    # and stocking a sack up to its dose targets. eherbs read_menu,
+    # check_prices, buy_herb, bundle_all, bundle_herb,
+    # get_current_stock, stock_requested_herbs,
+    # stock_storage, fill_herbs.
     module Shop
       module_function
 
-      # ORDER, as a map of item name to menu number. (3270)
+      # ORDER, as a map of item name to menu number.
       #
       # @return [Hash{String => String}]
       def menu
@@ -23,7 +23,7 @@ module EO
       end
 
       # Each type's price here, read once per herbalist room and kept by
-      # the driver. (1261)
+      # the driver.
       #
       # @param menu [Hash] from .menu
       # @return [Hash{String => Hash}] type to { cost:, name:, short_name: }
@@ -40,7 +40,7 @@ module EO
       end
 
       # Buy an herb of a category from the menu. The driver supplies the
-      # silver when the shop says there is not enough. (1197)
+      # silver when the shop says there is not enough.
       #
       # @param category [String]
       # @param amount [Integer]
@@ -76,7 +76,7 @@ module EO
       end
 
       # Combine like herbs in the sack into bundles, and like potions by
-      # pouring, so they take less room. (1074)
+      # pouring, so they take less room.
       #
       # @param sack [Sack]
       # @param herb [String, nil] one herb name, or every known one
@@ -132,7 +132,7 @@ module EO
       end
 
       # Combine what is in the two hands: pour like potions together,
-      # bundle like herbs. (1144)
+      # bundle like herbs.
       #
       # @return [Symbol] :poured, :bundled, :mismatch (the two herbs differ:
       #   the character has changed areas), or :nothing
@@ -167,7 +167,7 @@ module EO
 
       # What the sack is short of, against its targets: for each category
       # wanted, the doses held (measuring any item whose count is not yet
-      # known) against the target, and how many to buy here. (2172)
+      # known) against the target, and how many to buy here.
       #
       # @param sack [Sack]
       # @param categories [Array<String>]
@@ -210,7 +210,7 @@ module EO
         list
       end
 
-      # The silver a shopping list costs here, plus a tenth for luck. (1740)
+      # The silver a shopping list costs here, plus a tenth for luck.
       #
       # @param list [Array<Hash>]
       # @param prices [Hash] from .prices
@@ -227,7 +227,7 @@ module EO
       end
 
       # Buy everything on a shopping list at the herbalist here, store and
-      # bundle it. The note paying for it rides in a hand between buys. (1766)
+      # bundle it. The note paying for it rides in a hand between buys.
       #
       # @param list [Array<Hash>]
       # @param sack [Sack]
@@ -265,7 +265,7 @@ module EO
       end
 
       # Store what was just bought: an herb in hand, or a package to empty
-      # into the sack. (1815)
+      # into the sack.
       #
       # @param sack [Sack]
       # @return [GameObj, nil] the item stored
@@ -283,7 +283,7 @@ module EO
         end
       end
 
-      # The types the sack holds nothing for, in fill order. (1616)
+      # The types the sack holds nothing for, in fill order.
       #
       # @param contents [Hash] from Sack#contents
       # @return [Array<String>]

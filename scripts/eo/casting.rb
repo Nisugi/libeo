@@ -5,10 +5,10 @@ module EO
   # a target and what the game said, waiting for the mana or stamina a
   # cast needs (and the society abilities that make it), reading the
   # spells active on another character, and manna bread. ewaggle 2.2.0
-  # Casting: cast_spell (1378), check_mana (1575), check_mana_col (1599),
-  # safe_to_wrack (1654), check_mana_gos (1662), check_mana_voln (1680),
-  # check_stamina (1704), max_multicast (1715); Ewaggle: summon_bread
-  # (804), eat_bread (816), get_target_info (849).
+  # Casting: cast_spell, check_mana, check_mana_col,
+  # safe_to_wrack, check_mana_gos, check_mana_voln,
+  # check_stamina, max_multicast; Ewaggle: summon_bread,
+  # eat_bread, get_target_info.
   module Casting
     module_function
 

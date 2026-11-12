@@ -4,11 +4,11 @@ module EO
   # The locker: which rooms hold the character's, getting into one (a
   # booth may be taken, the locker may be in another town, a debt may
   # bar the door), opening it to a container, and leaving. eloot 2.15.0
-  # Hoard: che_locker_rooms (4499), town_name (4515), che_town_id_for
-  # (4522), locker_info_town (4535), lines_since (4544), nearest_first
-  # (4556), locker_way_in (4570), in_locker_room? (4580), booth_room?
-  # (4610), approach_step (4617), take_step (4628), enter_locker (4646),
-  # enter_any_locker (4713), open_locker (4791), leave_locker (4836).
+  # Hoard: che_locker_rooms, town_name, che_town_id_for,
+  # locker_info_town, lines_since, nearest_first,
+  # locker_way_in, in_locker_room?, booth_room?,
+  # approach_step, take_step, enter_locker,
+  # enter_any_locker, open_locker, leave_locker.
   module Locker
     module_function
 

@@ -2,7 +2,7 @@
 
 module EO
   # Asking a shop what an item is worth, and what the answer means. eloot
-  # 2.15.0 Sell parse_appraisal (6374), the ask in appraise (6383).
+  # 2.15.0 Sell parse_appraisal, the ask in appraise.
   module Appraisal
     module_function
 

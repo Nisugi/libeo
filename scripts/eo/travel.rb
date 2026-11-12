@@ -70,8 +70,8 @@ module EO
   end
 
   # One step to a neighbouring room not yet visited, else the least
-  # recently visited one, never across +avoid+. ewaggle col_move (1634),
-  # ebounty heirloom_search's wander (3466).
+  # recently visited one, never across +avoid+. ewaggle col_move,
+  # ebounty heirloom_search's wander.
   #
   # @param visited [Array<String>] room ids, most recent last; updated
   # @param avoid [Array<String>] room ids not to step into
@@ -92,7 +92,7 @@ module EO
   end
 
   # A room id from either form settings and profiles use: a map id ("1234",
-  # 1234) or a uid ("u7120"). ebounty uid_match (906): an unknown uid used
+  # 1234) or a uid ("u7120"). ebounty uid_match: an unknown uid used
   # to exit the script; here it raises for the caller to decide.
   #
   # @param room [Integer, String]
