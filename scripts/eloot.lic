@@ -36,6 +36,10 @@
     - the hoarding jars (label names, what kind an item is, reading a jar, the stash
       inventory by looking or from a premium locker manifest, filling and shaking a jar)
       come from libeo (EO::Hoard)
+    - skinning's creature choice, the tool drawn and put back, and standing up after come
+      from libeo (EO::Skinning). Kneeling to skin gives up after three tries and standing
+      after five, where both used to try forever (a web or bind kept the script stuck); a
+      skinning tool that cannot be drawn skips the skinning instead of trying bare-handed
   v2.15.0 (2026-11-09)
     - the setup window is now a Lich WebUI page instead of GTK, and needs a Lich with WebUI
     - fix: ;eloot list and ;eloot debug no longer depend on GTK, and ;eloot debug no longer errors
