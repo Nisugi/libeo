@@ -72,7 +72,7 @@
                        rescue script from ebounty with the garrote and Bard retries
     eo/herbs/          EO::Herbs: herbs and healing, from eherbs
       table.rb         every herb: where it is sold, what it cures, its doses; lookups
-      injuries.rb      the next herb type a wound wants; can we cast; another's wounds
+      injuries.rb      the next herb type a wound wants; another's wounds
       doses.rb         the doses left in each item, learned from the game as it goes
       sack.rb          the herb sack: find, open, contents by form, store, take, the kit
       heal.rb          healing yourself from the sack, a dead player, an escort client

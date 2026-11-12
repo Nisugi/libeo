@@ -75,23 +75,14 @@ module EO
         end
       end
 
-      # Whether a cast is worth attempting: not stunned or dead, no wound
-      # that blocks casting (head, eyes and nerves; the arms and hands
-      # unless Sigil of Power holds), none of the blocking debuffs.
+      # Whether a cast is worth attempting: not stunned or dead, the wounds
+      # allow it (Lich's Injured, Sigil of Determination included), none of
+      # the blocking debuffs.
       #
       # @return [Boolean]
       def can_cast?
         return false if stunned? || dead?
-        head = [Wounds.head, Scars.head, Wounds.leftEye, Scars.leftEye, Wounds.rightEye, Scars.rightEye, Wounds.nsys, Scars.nsys].max
-        blocked = if Spell[9716].active?
-                    head > 2
-                  else
-                    head > 1 ||
-                      [Wounds.leftArm, Wounds.leftHand, Wounds.rightArm, Wounds.rightHand, Scars.leftArm, Scars.leftHand, Scars.rightArm, Scars.rightHand].max > 2 ||
-                      [Wounds.leftArm, Wounds.leftHand, Scars.leftArm, Scars.leftHand].max > 1 ||
-                      [Wounds.rightArm, Wounds.rightHand, Scars.rightArm, Scars.rightHand].max > 1
-                  end
-        return false if blocked
+        return false unless Lich::Gemstone::Injured.able_to_cast?
         (Effects::Debuffs.to_h.keys & BLOCKING_DEBUFFS).empty?
       end
 

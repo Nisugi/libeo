@@ -2,11 +2,11 @@
 
 module EO
   module Herbs
-    # What the character's wounds want: the next herb type to use, whether
-    # there is anything to heal, whether spells can still be cast; and what
-    # another character's wounds look like from outside. eherbs
-    # next_herb_type (3158), status_check (3355), the start-up check (3537),
-    # able_to_cast (2838), appraise_character (1397), escort (1529).
+    # What the character's wounds want: the next herb type to use and
+    # whether there is anything to heal; and what another character's
+    # wounds look like from outside. Whether spells can still be cast is
+    # Lich's Injured.able_to_cast?. eherbs next_herb_type, status_check,
+    # the start-up check, appraise_character, escort.
     module Injuries
       module_function
 
@@ -104,28 +104,6 @@ module EO
           'raisedead'         => checkdead,
           'lifekeep'          => checkdead,
         }
-      end
-
-      # Whether the wounds leave the character able to cast: nothing above
-      # rank two anywhere that matters, nothing above one on the head or
-      # nerves, and no arm with two ranks between its parts (2838).
-      #
-      # @return [Boolean]
-      def can_cast?
-        left = { scar: 0, wound: 0 }
-        right = { scar: 0, wound: 0 }
-        XMLData.injuries.each do |area, h|
-          next unless area =~ /nsys|head|(left|right)(Eye|Arm|Hand)/
-          next unless h['scar'].positive? || h['wound'].positive?
-          return false if h['scar'] > 2 || h['wound'] > 2
-          return false if area =~ /nsys|head/ && (h['scar'] > 1 || h['wound'] > 1)
-          side = area =~ /left(Arm|Hand)/ ? left : (area =~ /right(Arm|Hand)/ ? right : nil)
-          next if side.nil?
-          side[:scar] += h['scar']
-          side[:wound] += h['wound']
-          return false if side[:scar] > 1 || side[:wound] > 1
-        end
-        true
       end
 
       # Another character's wounds from APPRAISE, as herb types to pour on

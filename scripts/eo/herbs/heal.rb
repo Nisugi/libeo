@@ -54,11 +54,11 @@ module EO
           waitcastrt?
           Spell[9713].cast
         end
-        if policy.use1035 && Spell[1035].known? && Spell[1035].affordable? && !Effects::Buffs.active?('Song of Tonis') && Injuries.can_cast?
+        if policy.use1035 && Spell[1035].known? && Spell[1035].affordable? && !Effects::Buffs.active?('Song of Tonis') && Lich::Gemstone::Injured.able_to_cast?
           waitcastrt?
           Spell[1035].cast
         end
-        return unless policy.use650 && Injuries.can_cast?
+        return unless policy.use650 && Lich::Gemstone::Injured.able_to_cast?
         if Spell[650].known? && Spell[650].affordable? && !Spell[650].active? && !Effects::Buffs.active?('Aspect of the Yierka') && !Spell[9039].active?
           waitcastrt?
           multifput('prep 650', 'assume yierka')

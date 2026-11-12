@@ -54,7 +54,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/guild/disablers.rb` | choosing and casting a disabling spell on whatever is met on a walk (from echild) |
 | `eo/guild/rescue.rb` | the child: finding it, its home, the walk to a guard (from echild); running a rescue script with the garrote and Bard retries |
 | `eo/herbs/table.rb` | every herb: where it is sold, what it cures, its doses, and the lookups (from eherbs) |
-| `eo/herbs/injuries.rb` | the next herb type a wound wants, whether casting still works, another character's wounds from APPRAISE or LOOK |
+| `eo/herbs/injuries.rb` | the next herb type a wound wants, another character's wounds from APPRAISE or LOOK |
 | `eo/herbs/doses.rb` | the doses left in each item, learned from the game as herbs are used, bought and bundled |
 | `eo/herbs/sack.rb` | the herb sack: finding, opening, contents by form, storing and taking, the Survivalist's Kit and its distiller |
 | `eo/herbs/heal.rb` | healing yourself from the sack, a dead player by pouring, an escort client by handing over |

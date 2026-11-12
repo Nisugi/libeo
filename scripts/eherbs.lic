@@ -1202,8 +1202,6 @@ module EHerbs
   end
 
   module Utility
-    def self.able_to_cast = EO::Herbs::Injuries.can_cast?
-
     def self.assert_herbsack_var
       return unless EHerbs.data[:herb_container].to_s.empty?
       respond ' No container was given and herbsack is not set!'
