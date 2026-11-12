@@ -360,7 +360,7 @@ module EBounty
             stop_script("go2") if Script.running?("go2")
             stop_script("#{current_script}")
 
-            EBounty.run_scripts(EBounty.data.settings[:death_script])
+            EO.run_scripts(EBounty.data.settings[:death_script])
             start_script("#{current_script}", ["#{ebo_vars}"])
             Script.self.kill
           end
@@ -422,8 +422,7 @@ module EBounty
   def self.fog
     EBounty.msg("debug", " #{__method__} | caller: #{caller[0]}")
 
-    return if UserVars.op['fog_return'].to_i.zero?
-    return if UserVars.op['fog_optional'] && $rest_reason !~ /wounded|encumbered/
+    return unless EO.fog_wanted?(UserVars.op['fog_return'], optional: UserVars.op['fog_optional'], reason: $rest_reason)
 
     Lich::Gemstone::Fog.return(UserVars.op['fog_return'].to_i, rift: UserVars.op['fog_rift'] ? true : false,
                                                                resting_room: UserVars.op['resting_room_id'].to_i)
@@ -498,17 +497,6 @@ module EBounty
     end
   end
 
-  def self.run_scripts(scripts)
-    scripts.split(/,\s*/).each do |i|
-      tokens = i.split(/\s+/)
-      if (tokens.size > 1)
-        Script.run(tokens[0], tokens[1..-1].join(" "))
-      else
-        Script.run(tokens[0])
-      end
-    end
-  end
-
   def self.msg(type = "info", text)
     # color options - set type to use
     # yellow, orange, teal, green, plain
@@ -576,7 +564,7 @@ module EBounty
       where_to = 'table'
     elsif EBounty.data.settings[:use_script]
       where_to = 'script'
-      EBounty.run_scripts(EBounty.data.settings[:use_script_name])
+      EO.run_scripts(EBounty.data.settings[:use_script_name])
     elsif XMLData.game == "GSF"
       where_to = 'nexus'
     else
@@ -606,7 +594,7 @@ module EBounty
     end
 
     if EBounty.data.settings[:use_buff_script]
-      EBounty.run_scripts(EBounty.data.settings[:buff_script])
+      EO.run_scripts(EBounty.data.settings[:buff_script])
     end
   end
 
@@ -2046,7 +2034,7 @@ module EBounty
       EBounty.msg("debug", " #{__method__} | caller: #{caller[0]}")
       Task.ask_assignment('jeweler')
       unless EBounty.data.settings[:gem_history].to_s.empty?
-        EBounty.run_scripts(EBounty.data.settings[:gem_history])
+        EO.run_scripts(EBounty.data.settings[:gem_history])
       end
     end
 

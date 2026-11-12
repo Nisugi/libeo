@@ -20,6 +20,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/settings.rb` | `EO::Settings`: whether the setup window can open, the settings table's lookups and defaults, the profile file, and `ListForm`: the ListSettingsForm window ebounty and eloot share (from the e-scripts' `Setup`) |
 | `eo/travel.rb` | `EO.go2`, `EO.at?`, `EO.nearest`, `EO.visit`, `EO.room_id`, `EO.wander` (one step, least recently visited first) |
 | `eo/wander.rb` | `EO::Wander`: a step from anywhere (the Elemental Confluence learned as it is walked), picking a creature to stop for, learning what TARGET accepts (from ewander) |
+| `eo/scripts.rb` | `EO.run_scripts`, `EO.split_script`: the scripts a setting lists, each run to its end |
 | `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime |
 | `eo/containers.rb` | `EO::Containers`: open a container only when it is closed, see one open, read contents the game does not refresh; a carried container is asked of Lich's `Inventory`, the rest by LOOK IN |
 | `eo/hands.rb` | `EO::Hands`: free a hand, take an item, wear, put into a container, the READY list; every outcome comes back as a word (from eloot), over Lich's `Stash` for which hand holds what and opening the way to an item |

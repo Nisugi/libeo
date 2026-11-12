@@ -53,6 +53,20 @@ module EO
     room.location.to_s =~ /Mist Harbor|Four Winds/i ? true : false
   end
 
+  # Whether to fog home after a hunt, by bigshot's fog_return rule: method
+  # 0 is off, and fog_optional fogs only a rest forced by wounds or
+  # encumbrance. Lich's Fog.return does the fog itself.
+  #
+  # @param method [Integer, String] the profile's fog_return
+  # @param optional [Boolean] the profile's fog_optional
+  # @param reason [String, Symbol, nil] why the hunt is resting
+  # @return [Boolean]
+  def self.fog_wanted?(method, optional: false, reason: nil)
+    return false if method.to_i.zero?
+    return false if optional && reason.to_s !~ /wounded|encumbered/
+    true
+  end
+
   # Go somewhere, do something, come back.
   #
   #   EO.visit('bank') { Lich::Gemstone::Bank.deposit }
