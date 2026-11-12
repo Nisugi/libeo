@@ -40,6 +40,8 @@
       from libeo (EO::Skinning). Kneeling to skin gives up after three tries and standing
       after five, where both used to try forever (a web or bind kept the script stuck); a
       skinning tool that cannot be drawn skips the skinning instead of trying bare-handed
+    - which bag an item goes in (type, default, overflow), the full bags, and learning
+      auto-closers and crumbly items come from libeo (EO::Stow)
   v2.15.0 (2026-11-09)
     - the setup window is now a Lich WebUI page instead of GTK, and needs a Lich with WebUI
     - fix: ;eloot list and ;eloot debug no longer depend on GTK, and ;eloot debug no longer errors
@@ -456,7 +458,7 @@ end
 
 module ELoot # Data
   class Data
-    attr_accessor :disk, :disk_full, :sacks_full, :ready_method, :settings, :skinners, :skinsheath, :silent_open, :checked_bags,
+    attr_accessor :disk, :disk_full, :ready_method, :settings, :skinners, :skinsheath, :silent_open, :checked_bags,
                   :close_regex, :look_regex, :sacks_closed, :all_loot_categories, :regex_gold_rings, :right_hand, :left_hand, :skin_edged, :skin_blunt,
                   :coin_hand, :coin_container, :silver_breakdown, :over_max, :pawn_recheck, :jewelry_wrong_shop, :get_regex, :put_regex, :alchemy_mode, :sell_containers, :local_gemshop, :local_furrier, :log_unlootables,
                   :charm, :gauntlet, :coin_bag, :account_type, :locker, :container_settings, :everything_list, :everything,
@@ -466,6 +468,29 @@ module ELoot # Data
                   :use_house_locker, :che_rooms, :che_entry, :che_exit, :towns, :gambling_kit, :gambling_kit_full, :ready_lines, :weapon_inv, :original_readylist, :blood_band,
                   :transmog_cache, :loot_exclude_regex, :critter_exclude_regex, :loot_keep_regex, :allowed_special_types, :sell_exclude_regex, :no_vib_regex, :vib_scrolls_regex,
                   :pool_command, :town_refused
+
+    # Where loot goes (libeo's EO::Stow); it keeps which bags are full.
+    def stow
+      @stow ||= EO::Stow.new(learned: lambda do |kind, obj|
+        case kind
+        when :auto_close
+          @settings[:auto_close].push(obj.name)
+          ELoot.msg(type: "info", text: " #{obj.name} must be an autocloser, adding to list.")
+          ELoot.save_profile()
+        when :crumbly
+          ELoot.msg(type: "info", text: " This item was crumbly, adding to list")
+          @settings[:crumbly].push(obj.name)
+          ELoot.save_profile()
+        when :unlootable then ELoot.unlootable(obj)
+        end
+      end)
+    end
+
+    def sacks_full = stow.full
+
+    def sacks_full=(full)
+      stow.full = full
+    end
 
     def initialize(settings)
       @settings = settings
@@ -479,7 +504,7 @@ module ELoot # Data
 
       # inventory type
       @sacks_closed = []
-      @sacks_full = { "last cleared" => [Time.now.strftime('%Y-%m-%d %H:%M:%S'), Room.current.id, Script.current.vars[0]] }
+      self.sacks_full = { "last cleared" => [Time.now.strftime('%Y-%m-%d %H:%M:%S'), Room.current.id, Script.current.vars[0]] }
       @checked_bags = []
       @sell_containers = []
       @ready_lines = []
@@ -3103,33 +3128,9 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
       return if item.nil? || item.name == "Empty"
       pending_stow = ELoot.record_room_tool_stow(item, bag) if is_skinner
 
-      closes_itself = lambda do |closed_bag|
-        # Must be an auto closer. Their ID and contents don't drop from GameObj.container when closed
-        next unless GameObj.containers.keys.include?(closed_bag.id) && closed_bag.contents.is_a?(Array)
-        ELoot.data.settings[:auto_close].push(closed_bag.name)
-        ELoot.msg(type: "info", text: " #{closed_bag.name} must be an autocloser, adding to list.")
-        ELoot.save_profile()
-      end
-
-      case EO::Hands.store(bag, item, loose: is_skinner, on_closed: closes_itself)
-      when :stored, :gone then true
-      when :not_yours then false
-      when :unlootable
-        ELoot.unlootable(item)
-        true
-      when :full
-        unless item.name =~ /gold ingot/
-          ELoot.msg(type: "debug", text: "sacks_full(#{bag.name}) - item: #{item.inspect}")
-          ELoot.data.sacks_full[bag.name] = [Time.now.strftime('%Y-%m-%d %H:%M:%S'), Room.current.id, "#{item.name}(#{item.id})"]
-        end
-        false
-      when :crumbled
-        ELoot.msg(type: "info", text: " This item was crumbly, adding to list")
-        ELoot.data.settings[:crumbly].push(item.name)
-        ELoot.save_profile()
-        true
-      else false
-      end
+      result = ELoot.data.stow.put(bag, item, loose: is_skinner)
+      ELoot.msg(type: "debug", text: "sacks_full(#{bag.name}) - item: #{item.inspect}") if result == :full
+      %i[stored unlootable crumbled].include?(result)
     ensure
       pending_stow[:settled] = true if pending_stow && !ELoot.in_hand?(item)
     end
@@ -3212,24 +3213,7 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
       # Early return if not keeping closed since they all get opened on startup
       return unless ELoot.data.settings[:keep_closed]
 
-      Inventory.open_single_container(StowList.stow_list[:default])
-
-      # Dynamically open all overflow containers
-      overflow_keys = StowList.stow_list.keys.select { |k| k.to_s.start_with?('overflow_container') }
-      overflow_keys.each do |key|
-        Inventory.open_single_container(StowList.stow_list[key])
-      end
-
-      containers = Array.new
-      item.each { |loot|
-        loot_type = loot.type.to_sym
-        next if StowList.stow_list[loot_type].nil?
-
-        unless containers.include?(StowList.stow_list[loot_type].id)
-          Inventory.open_single_container(StowList.stow_list[loot_type])
-          containers.push(StowList.stow_list[loot_type].id)
-        end
-      }
+      ELoot.data.stow.bags_for(item).each { |bag| Inventory.open_single_container(bag) }
     end
 
     def self.return_hands
@@ -3263,24 +3247,14 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
       return if Inventory.single_drag_box(item)
 
       # Try sacks in order of priority: item-specific, default, overflow containers (in order)
-      containers = [
-        StowList.stow_list[item.type.to_sym],
-        StowList.stow_list[:default]
-      ]
-
-      # Dynamically add all overflow containers in order
-      overflow_keys = StowList.stow_list.keys.select { |k| k.to_s.start_with?('overflow_container') }.sort_by do |k|
-        # Sort by extracting number from key (overflow_container = 0, overflow_container_2 = 2, etc.)
-        k.to_s.match(/overflow_container_?(\d*)$/)[1].to_i
-      end
-      overflow_keys.each { |key| containers << StowList.stow_list[key] }
+      containers = ELoot.data.stow.route(item)
 
       containers.each_with_index do |bag, index|
         if stunned?
           ELoot.msg(type: "debug", text: "single_drag: character stunned, waiting for it to clear")
           wait_while { stunned? }
         end
-        next if bag && ELoot.data.sacks_full.keys.include?(bag.name)
+        next if ELoot.data.stow.full?(bag)
 
         if bag.nil?
           case index
@@ -3374,9 +3348,9 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
 
       # loot item will fallback to the default sack but if both are full we need to loot manually
       bag = StowList.stow_list[item.type.to_sym]
-      bag = nil if bag.nil? || ELoot.data.sacks_full.keys.include?(bag.name)
+      bag = nil if ELoot.data.stow.full?(bag)
       bag ||= StowList.stow_list[:default]
-      bag = nil if bag.nil? || ELoot.data.sacks_full.keys.include?(bag.name)
+      bag = nil if ELoot.data.stow.full?(bag)
 
       unless bag
         Inventory.single_drag(item)
@@ -4392,7 +4366,7 @@ module ELoot # Room looting
         items_opened = Array.new
         items.each { |item|
           item_type = item.type.to_sym
-          if StowList.stow_list[item_type] && !ELoot.data.sacks_full.keys.include?(StowList.stow_list[item_type].name)
+          if StowList.stow_list[item_type] && !ELoot.data.stow.full?(StowList.stow_list[item_type])
             bag = StowList.stow_list[item_type]
           else
             bag = StowList.stow_list[:default]

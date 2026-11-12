@@ -56,6 +56,9 @@
       after three tries; from eloot
     - eloot's settings read by any script: EO::Loot::Policy.from_settings, EO::Loot.words
       (a list matched as whole words), EO::Skinning.exclusions
+    - EO::Stow: where an item goes by the STOW list (its type's bag, the default, the
+      overflow bags in order), which bags filled up, and what a put taught (a bag that
+      closes itself, a crumbly or unlootable item); from eloot
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
@@ -71,7 +74,7 @@ base = File.join(SCRIPT_DIR, 'eo')
 verbose = $VERBOSE
 begin
   $VERBOSE = nil
-  %w[version help messages settings travel command scripts containers hands town items locker skinning appraisal loot selling locksmith hoard casting wander brooch chain
+  %w[version help messages settings travel command scripts containers hands stow town items locker skinning appraisal loot selling locksmith hoard casting wander brooch chain
      cleanse/tables cleanse/hazards cleanse/afflictions cleanse/disarms cleanse/traps
      coordination/protocol coordination/discovery coordination/parser_projection
      guild/tables guild/policy guild/npcs guild/location guild/forage

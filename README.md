@@ -29,6 +29,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime; `EO.stand`: STAND a few tries at most |
 | `eo/containers.rb` | `EO::Containers`: open a container only when it is closed, see one open, read contents the game does not refresh; a carried container is asked of Lich's `Inventory`, the rest by LOOK IN |
 | `eo/hands.rb` | `EO::Hands`: free a hand, take an item, wear, put into a container, the READY list; every outcome comes back as a word (from eloot), over Lich's `Stash` for which hand holds what and opening the way to an item |
+| `eo/stow.rb` | `EO::Stow`: where an item goes by the STOW list (its type's bag, the default, the overflow bags in order), which bags are full, the bags to open before looting, and what a put taught: a bag that closes itself, a crumbly or unlootable item (from eloot) |
 | `eo/town.rb` | `EO::Town`: which shop to walk to and whether to go at all, a bounty town's region, Four Winds Isle, the trash can, the locksmith pool's worker (from eloot) |
 | `eo/items.rb` | `EO::Items`: toss unless marked, phase and unphase a box, lift a curse, and the disk that follows the character (from eloot) |
 | `eo/locker.rb` | `EO::Locker`: the character's locker rooms, getting into a booth (taken, elsewhere, a debt), opening it to a container, leaving (from eloot) |
