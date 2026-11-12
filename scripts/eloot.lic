@@ -20,6 +20,8 @@
   Improvements:
   Major_change.feature_addition.bugfix
   v2.16.0 (2026-11-12)
+    - fix: ;eloot settings takes a decimal value (alpha_rate); it stopped with "don't know
+      how to normalize a Float". The command-line settings change is libeo's now
     - the hands (free, take, wear, put away, the READY list), containers, the shop
       and region lookups, Four Winds Isle, the trash can, the pool worker, tossing,
       box phasing, decursing and the disk now come from libeo (EO::Hands, EO::Containers,
@@ -1431,32 +1433,6 @@ module ELoot # UI Setup
 end
 
 module ELoot # Profile loading/saving and settings
-  def self.coerce_setting_value(setting_name, default, input)
-    case default
-    when TrueClass, FalseClass
-      fix_option = { 'on' => true, 'true' => true, 'yes' => true, 'off' => false, 'false' => false, 'no' => false }
-      fix_option.fetch(input[0]) do |v|
-        ELoot.msg(type: "error", text: %{Expected a boolean (true/false/yes/no) value for "#{setting_name} but got "#{v}"})
-        exit
-      end
-    when Array
-      input
-    when Integer
-      v = input[0]
-      if v =~ /\A[+-]?\d+\z/
-        v.to_i
-      else
-        ELoot.msg(type: "error", text: %{Expected an integer value for #{setting_name} value but got "#{v}"})
-        exit
-      end
-    when String
-      input.join(" ")
-    else
-      ELoot.msg(type: "error", text: "Recognized #{setting_name} but don't know how to normalize a #{default.class} type setting")
-      exit
-    end
-  end
-
   def self.launch_settings_ui
     Setup.new(data.settings).start
     ELoot.load(load_profile)
@@ -1638,10 +1614,6 @@ module ELoot # Profile loading/saving and settings
     settings_hash
   end
 
-  def self.normalize_setting_name(input)
-    input.downcase.tr('-', '_').to_sym
-  end
-
   def self.save_hoard_profile
     # Saves profile for gems/reagents inventory syncs
     ELoot.data.inv_save = true
@@ -1694,23 +1666,12 @@ module ELoot # Profile loading/saving and settings
     end
   end
 
+  # ;eloot settings <name> <value>: one setting changed from the command line.
   def self.update_setting(input)
-    setting_to_update = normalize_setting_name(input.first)
-    ELoot.msg(type: "debug", text: "Normalized #{input.first} as #{setting_to_update}")
-
-    if ELoot.data.settings.keys.include?(setting_to_update)
-      default_value = ELoot.data.settings[setting_to_update].dup
-      ELoot.msg(type: "debug", text: "recognized #{setting_to_update} as as valid #{default_value.class} setting")
-      new_value = coerce_setting_value(setting_to_update, default_value, input[1..-1])
-      ELoot.msg(type: "debug", text: "Normalized #{input[1..-1]} as #{new_value.inspect}")
-
-      data.settings[setting_to_update] = new_value
-      ELoot.msg(type: "info", text: " Updated #{setting_to_update} to #{new_value}")
-      ELoot.save_profile()
-    else
-      ELoot.msg(type: "error", text: " #{setting_to_update} is not a recognized setting. Recognized setting names:")
-      ELoot.msg(type: "error", text: ELoot.data.settings.keys.sort.join("\n"))
-    end
+    EO::Settings.update_from_words(input, ELoot.data.settings, say: ->(type, text) { ELoot.msg(type: type, text: text) }) { ELoot.save_profile }
+  rescue ArgumentError => e
+    ELoot.msg(type: "error", text: e.message)
+    exit
   end
 end
 
