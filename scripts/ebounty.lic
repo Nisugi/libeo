@@ -17,7 +17,7 @@
   v1.14.0 (2026-11-11)
     - the guild's tables, NPC finding, the taskmaster finder, location resolution,
       herb lookup and the command helpers now come from libeo (EO::Guild); needs
-      libeo 0.2.0 and Lich 5.22.0
+      libeo 0.3.0 and Lich 5.22.0
     - the guild dialogue too: getting, turning in, removing and expediting a task,
       the furrier, herbalist and gem dealer visits, the guard visit, and the vetting
       of a new task against the settings (libeo's TaskPolicy)
@@ -205,7 +205,7 @@
 # A libeo loaded earlier in this Lich session may be older than this script
 # needs; load it again unless the newest thing used here is already defined.
 Script.loadlib('libeo') unless defined?(::EO::Cleanse)
-EO.require('0.2.0')
+EO.require('0.3.0')
 
 lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
 
@@ -1116,61 +1116,19 @@ module EBounty
       @@categories[:general][:contempt_resting] = { default: '35603' }
     end
 
+    extend EO::Settings::Registry
+    include EO::Settings::Controls
+
     # True when Lich can open a WebUI window for this script.
-    def self.available?
-      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
-        defined?(Lich::WebUI::ListSettingsForm)
-    end
-
-    def self.get_category(key)
-      @@categories.each { |category, data| return category unless data[key].nil? }
-      nil
-    end
-
-    def self.get_setting(key)
-      cat = Setup.get_category(key)
-      return nil if cat.nil?
-
-      @@categories[cat].each { |setting, data| return data if setting == key }
-      nil
-    end
-
-    # ListSettingsForm keys rows by position and seeds each viewer's table
-    # selection only once, so after Add or Delete the window would keep
-    # highlighting a row the form no longer has selected (and Delete would do
-    # nothing). Clearing that viewer's selection keeps the two in step.
-    @form_class = nil
-
-    def self.form_class
-      @form_class ||= Class.new(Lich::WebUI::ListSettingsForm) do
-        private
-
-        def render_field(tree, field, refs, **overrides)
-          ref = super
-          (@tables ||= {})[field[:key]] = ref if field && @lists.key?(field[:key])
-          ref
-        end
-
-        def change_list(key, action, event)
-          super
-          table = @tables&.[](key)
-          @page.set(table.cid, :selected, [], viewer: event.viewer_id) if table
-        end
-      end
-    end
+    def self.available? = EO::Settings.available?(:ListSettingsForm)
 
     def initialize(settings)
       @owner = Script.current
       @script_ver = EBounty.get_script_version
       @settings = settings
 
-      # set default values if they don't exist
-      @@categories.each do |_, data|
-        data.each { |key, value| @settings[key] = value[:default].dup if @settings[key].to_s.empty? }
-      end
-
-      # remove settings that doesn't exist
-      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+      Setup.fill_defaults(@settings, blank: true)
+      Setup.prune(@settings)
     end
 
     # ---------------------------------------------------------- lifecycle --
@@ -1193,11 +1151,11 @@ module EBounty
       @live = form_values
       @drafts = LISTS.to_h { |key| [key, Array(@settings[key]).dup] }
       @refs = {}
-      @form = Setup.form_class.new(owner: @owner, id: PAGE_ID, title: title, values: @live, fields: fields,
-                                   lists: LISTS.to_h { |key| [key, list_spec(key)] },
-                                   normalize: ->(draft) { setup.normalize(draft) },
-                                   layout: ->(ui, field, save) { setup.layout(ui, field, save) },
-                                   props: { size: [900, 820], viewport: true })
+      @form = EO::Settings.list_form.new(owner: @owner, id: PAGE_ID, title: title, values: @live, fields: fields,
+                                         lists: LISTS.to_h { |key| [key, list_spec(key)] },
+                                         normalize: ->(draft) { setup.normalize(draft) },
+                                         layout: ->(ui, field, save) { setup.layout(ui, field, save) },
+                                         props: { size: [900, 820], viewport: true })
     end
 
     attr_reader :drafts, :live
@@ -1215,10 +1173,6 @@ module EBounty
 
     def shown_keys
       @@categories[:general].keys - HIDDEN
-    end
-
-    def boolean?(key)
-      [true, false].include?(Setup.get_setting(key)[:default])
     end
 
     def member_key(key, value)
@@ -1262,13 +1216,6 @@ module EBounty
       end
     end
 
-    # Display value for a spinner: inside min..max and on a step, as the contract requires.
-    def spin_value(key)
-      max, step, digits = SPINS.fetch(key)
-      number = digits.zero? ? @settings[key].to_i : @settings[key].to_f
-      ((number.clamp(0, max) / step).round * step).round(digits)
-    end
-
     # A blank or unknown boost choice shows Any.
     def boost_value
       BOOST_TYPES.include?(@settings[:boost_type]) ? @settings[:boost_type] : 'Any'
@@ -1299,14 +1246,6 @@ module EBounty
       # The dropdown and its name setting have always held the same name.
       PROFILES.each { |profile, name| result[name] = result[profile] unless result[profile] == @settings[profile].to_s.strip }
       result
-    end
-
-    def number_setting(key, value)
-      raise ArgumentError, "#{key} must be a number." unless value.is_a?(Numeric)
-      return @settings[key] if value == spin_value(key)
-
-      max, _step, digits = SPINS.fetch(key)
-      (digits.zero? ? value.round : value.to_f.round(digits)).clamp(0, max)
     end
 
     def profile_options
@@ -1588,23 +1527,7 @@ module EBounty
       end
     end
 
-    def cancel
-      @form.close
-    end
-
     # --------------------------------------------------------- render parts --
-
-    def place(slot)
-      slot ? { slot: slot } : {}
-    end
-
-    def tip_for(tip)
-      tip ? { tooltip: tip } : {}
-    end
-
-    def hint_for(hint)
-      hint ? { placeholder: hint } : {}
-    end
 
     def render_check(ui, key, label, slot: nil, off: false, tip: nil, on: nil)
       control(ui, key, label: label, disabled: off, **place(slot), **tip_for(tip), **(on ? { on: on } : {}))

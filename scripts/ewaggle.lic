@@ -14,7 +14,7 @@
   2.3.0 (2026-11-12)
     - casting, the multicast count, making mana (wracking, Sigil of Power, Symbol of Mana,
       stamina), reading another's active spells and manna bread come from libeo (EO::Casting).
-      Needs libeo 0.2.0
+      Needs libeo 0.3.0
     - fix: with Sign of Wracking ready and someone watching, waiting for mana instead of
       spinning in place
   2.2.0 (2026-11-07)
@@ -75,7 +75,7 @@
 =end
 
 Script.loadlib('libeo') unless defined?(::EO::Cleanse)
-EO.require('0.2.0')
+EO.require('0.3.0')
 =begin
 waggle.lic prior release notes
   0.18.4 (2023-04-05):
@@ -269,24 +269,10 @@ module Ewaggle
       },
     }
 
+    extend EO::Settings::Registry
+
     # True when Lich can open a WebUI window for this script.
-    def self.available?
-      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
-        defined?(Lich::WebUI::SettingsForm) ? true : false
-    end
-
-    def self.get_category(key)
-      @@categories.each { |category, data| return category unless data[key].nil? }
-      nil
-    end
-
-    def self.get_setting(key)
-      cat = Setup.get_category(key)
-      return nil if cat.nil?
-
-      @@categories[cat].each { |setting, data| return data if setting == key }
-      nil
-    end
+    def self.available? = EO::Settings.available?(:SettingsForm)
 
     def initialize(settings)
       @owner = Script.current
@@ -300,13 +286,8 @@ module Ewaggle
 
       @version = Ewaggle.get_script_version
 
-      # set default values if they don't exist
-      @@categories.each do |_key, data|
-        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
-      end
-
-      # remove settings that don't exist
-      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+      Setup.fill_defaults(@settings)
+      Setup.prune(@settings)
 
       # disable options and set them to false if the character can't do them
       disabled.each { |key| @settings[key] = key == :retribution_spell ? "" : false }

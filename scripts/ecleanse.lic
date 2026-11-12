@@ -11,7 +11,7 @@
   Improvements:
   v2.5.0  (2026-11-12)
     - the cures, the room hazards, the disarm search and list, and the hive traps,
-      itchy curse and vat come from libeo (EO::Cleanse); needs libeo 0.2.0
+      itchy curse and vat come from libeo (EO::Cleanse); needs libeo 0.3.0
     - the disarm, trap, curse and infection lines are Lich's own (Combat::Messages),
       still matched ahead of other scripts so the hands are read at the moment of a disarm
     - whether wounds allow a cast is Lich's (Injured); Spell Cleave and Spell Thieve are
@@ -207,7 +207,7 @@ if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
 end
 
 Script.loadlib('libeo') unless defined?(::EO::Cleanse)
-EO.require('0.2.0')
+EO.require('0.3.0')
 
 require 'yaml'
 require 'securerandom'
@@ -320,23 +320,10 @@ module Ecleanse
       }
     }
 
-    def self.available?
-      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
-        defined?(Lich::WebUI::SettingsForm) ? true : false
-    end
+    extend EO::Settings::Registry
 
-    def self.get_category(key)
-      @@categories.each { |category, data| return category unless data[key].nil? }
-      nil
-    end
-
-    def self.get_setting(key)
-      cat = Setup.get_category(key)
-      return nil if cat.nil?
-
-      @@categories[cat].each { |setting, data| return data if setting == key }
-      nil
-    end
+    # True when Lich can open a WebUI window for this script.
+    def self.available? = EO::Settings.available?(:SettingsForm)
 
     def initialize(settings)
       @settings = settings
@@ -348,13 +335,8 @@ module Ecleanse
       # Get script version
       @settings[:version] = @version = Util.get_script_version
 
-      # set default values if they don't exist
-      @@categories.each do |_, data|
-        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
-      end
-
-      # remove settings that don't exist
-      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+      Setup.fill_defaults(@settings)
+      Setup.prune(@settings)
     end
 
     # Options this character cannot use: greyed out and switched off, as in
@@ -525,46 +507,6 @@ module Ecleanse
       if $frontend == 'stormfront'
         output = "<output class=\"\"/>\n"
         _respond("#{output}")
-      end
-    end
-
-    def self.update_setting(key, value)
-      setting = Setup.get_setting(key)
-      echo "** Setting #{key.inspect} does not exist" if setting.nil?
-      action = nil
-
-      if value =~ /^([+-])(.*)$/
-        action = Regexp.last_match(1)
-        value = Regexp.last_match(2).strip.downcase
-      end
-
-      if value == 'reset'
-        @settings.delete(key)
-        echo " Reset #{key}"
-      elsif @settings[key].class == Array
-        if value =~ /\d/ && @settings[key][value.to_i]
-          @settings[key].delete_at(value.to_i)
-        else
-          @settings[key].delete(value)
-        end
-
-        if action == '-'
-          echo " #{value.inspect} removed from #{key.inspect}"
-        else
-          @settings[key].push(value)
-          echo " #{value.inspect} added to #{key.inspect}"
-        end
-
-        echo " #{key.inspect} is now #{@settings[key].join(', ').inspect}"
-      else
-        if @settings[key].class == FalseClass || @settings[key].class == TrueClass
-          value = value =~ /^true|1|yes|on/ ? true : false
-        elsif @settings[key].class == Integer
-          value = value.to_i
-        end
-
-        echo "#{key.inspect} has been set to #{value.inspect}"
-        @settings[key] = value
       end
     end
   end

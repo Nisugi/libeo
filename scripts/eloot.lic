@@ -23,7 +23,7 @@
     - the hands (free, take, wear, put away, the READY list), containers, the shop
       and region lookups, Four Winds Isle, the trash can, the pool worker, tossing,
       box phasing, decursing and the disk now come from libeo (EO::Hands, EO::Containers,
-      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.2.0
+      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.3.0
     - the locker (rooms, booth entry, open, leave), skinning and the appraisal
       reading come from libeo too (EO::Locker, EO::Skinning, EO::Appraisal)
     - the loot decision (what in the room is loot, what is wanted) and selling one
@@ -330,7 +330,7 @@ before_dying { ELoot.release_room_lease(eloot_load_token) }
 
 # Check version of Lich for compatibility
 Script.loadlib('libeo') unless defined?(::EO::Cleanse)
-EO.require('0.2.0')
+EO.require('0.3.0')
 
 lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
 
@@ -1003,48 +1003,11 @@ module ELoot # UI Setup
       }
     }
 
+    extend EO::Settings::Registry
+    include EO::Settings::Controls
+
     # True when Lich can open a WebUI window for this script.
-    def self.available?
-      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
-        defined?(Lich::WebUI::ListSettingsForm)
-    end
-
-    def self.get_category(key)
-      @@categories.each { |category, data| return category unless data[key].nil? }
-      nil
-    end
-
-    def self.get_setting(key)
-      cat = Setup.get_category(key)
-      return nil if cat.nil?
-
-      @@categories[cat].each { |setting, data| return data if setting == key }
-      nil
-    end
-
-    # ListSettingsForm keys rows by position and seeds each viewer's table
-    # selection only once, so after Add or Delete the window would keep
-    # highlighting a row the form no longer has selected (and Delete would do
-    # nothing). Clearing that viewer's selection keeps the two in step.
-    @form_class = nil
-
-    def self.form_class
-      @form_class ||= Class.new(Lich::WebUI::ListSettingsForm) do
-        private
-
-        def render_field(tree, field, refs, **overrides)
-          ref = super
-          (@tables ||= {})[field[:key]] = ref if field && @lists.key?(field[:key])
-          ref
-        end
-
-        def change_list(key, action, event)
-          super
-          table = @tables&.[](key)
-          @page.set(table.cid, :selected, [], viewer: event.viewer_id) if table
-        end
-      end
-    end
+    def self.available? = EO::Settings.available?(:ListSettingsForm)
 
     def initialize(settings)
       @owner = Script.current
@@ -1052,9 +1015,7 @@ module ELoot # UI Setup
       @version = ELoot.get_script_version
       @status = ''
       validate_settings
-
-      # remove settings that doesn't exist
-      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+      Setup.prune(@settings)
 
       # options the character can't use are shown disabled and forced off
       unavailable.each { |key| @settings[key] = false }
@@ -1120,11 +1081,11 @@ module ELoot # UI Setup
       setup = self
       @live = form_values
       @drafts = LISTS.to_h { |key| [key, Array(@settings[key]).dup] }
-      @form = Setup.form_class.new(owner: @owner, id: PAGE_ID, title: title, values: @live, fields: fields,
-                                   lists: LISTS.to_h { |key| [key, list_spec(key)] },
-                                   normalize: ->(draft) { setup.normalize(draft) },
-                                   layout: ->(ui, field, save) { setup.layout(ui, field, save) },
-                                   props: { size: [900, 820], viewport: true })
+      @form = EO::Settings.list_form.new(owner: @owner, id: PAGE_ID, title: title, values: @live, fields: fields,
+                                         lists: LISTS.to_h { |key| [key, list_spec(key)] },
+                                         normalize: ->(draft) { setup.normalize(draft) },
+                                         layout: ->(ui, field, save) { setup.layout(ui, field, save) },
+                                         props: { size: [900, 820], viewport: true })
     end
 
     attr_reader :drafts
@@ -1143,10 +1104,6 @@ module ELoot # UI Setup
 
     def shown_keys
       @@categories.values_at(:loot, :boxes, :sell, :skin, :hoard).flat_map(&:keys).uniq - HIDDEN
-    end
-
-    def boolean?(key)
-      [true, false].include?(Setup.get_setting(key)[:default])
     end
 
     def member_key(key, value)
@@ -1197,13 +1154,6 @@ module ELoot # UI Setup
       end
     end
 
-    # Display value for a spinner: inside min..max and on a step, as the contract requires.
-    def spin_value(key)
-      max, step, digits = SPINS.fetch(key)
-      number = digits.zero? ? @settings[key].to_i : @settings[key].to_f
-      ((number.clamp(0, max) / step).round * step).round(digits)
-    end
-
     # A saved value that isn't one of the choices shows the first choice.
     def select_value(key)
       value = @settings[key].to_s
@@ -1233,14 +1183,6 @@ module ELoot # UI Setup
       end
       unavailable.each { |key| result[key] = false }
       result
-    end
-
-    def number_setting(key, value)
-      raise ArgumentError, "#{key} must be a number." unless value.is_a?(Numeric)
-      return @settings[key] if value == spin_value(key)
-
-      max, _step, digits = SPINS.fetch(key)
-      (digits.zero? ? value.round : value.to_f.round(digits)).clamp(0, max)
     end
 
     # ------------------------------------------------------------------ lists --
@@ -1620,19 +1562,7 @@ module ELoot # UI Setup
       end
     end
 
-    def cancel
-      @form.close
-    end
-
     # --------------------------------------------------------- render parts --
-
-    def place(slot)
-      slot ? { slot: slot } : {}
-    end
-
-    def tip_for(tip)
-      tip ? { tooltip: tip } : {}
-    end
 
     def render_check(ui, key, label, slot: nil, off: false, tip: nil)
       control(ui, key, label: label, disabled: off || unavailable.include?(key), **place(slot), **tip_for(tip), **gate(key))
@@ -1661,10 +1591,6 @@ module ELoot # UI Setup
         ui.text(slot: '0', key: "#{key}-label", content: label, **setup.tip_for(tip))
         setup.control(ui, key, slot: '1', disabled: off, **setup.tip_for(tip), **setup.hint_for(hint))
       end
-    end
-
-    def hint_for(hint)
-      hint ? { placeholder: hint } : {}
     end
 
     def render_spin(ui, key, label, slot: nil, off: false, tip: nil)

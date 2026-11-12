@@ -18,7 +18,7 @@
   2.4.0 (2026-11-12)
     - the herb table, the wound-to-herb choice, the dose counts, the herb sack, healing,
       buying and stocking now come from libeo (EO::Herbs); the bank is Lich's Bank. This
-      script keeps its settings, its windows and its command line. Needs libeo 0.2.0 and Lich 5.22.0
+      script keeps its settings, its windows and its command line. Needs libeo 0.3.0 and Lich 5.22.0
   2.3.0 (2026-11-09)
     - ;eherbs setup is a Lich WebUI window instead of GTK; same options; Save & Close saves, Cancel or closing the window discards
     - setup checks Stock to % of Capacity: blank, or a whole number from 0 to 100
@@ -127,7 +127,7 @@
 # Check version of Lich for compatibility
 
 Script.loadlib('libeo') unless defined?(::EO::Cleanse)
-EO.require('0.2.0')
+EO.require('0.3.0')
 
 module EHerbs
   @@data ||= nil
@@ -417,23 +417,10 @@ module EHerbs
       }
     }
 
-    def self.available?
-      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
-        defined?(Lich::WebUI::SettingsForm) ? true : false
-    end
+    extend EO::Settings::Registry
 
-    def self.get_category(key)
-      @@categories.each { |category, data| return category unless data[key].nil? }
-      nil
-    end
-
-    def self.get_setting(key)
-      cat = Setup.get_category(key)
-      return nil if cat.nil?
-
-      @@categories[cat].each { |setting, data| return data if setting == key }
-      nil
-    end
+    # True when Lich can open a WebUI window for this script.
+    def self.available? = EO::Settings.available?(:SettingsForm)
 
     def self.mending_allowed? = Society.status == 'Guardians of Sunfist' && Society.rank >= 13
 
@@ -441,12 +428,8 @@ module EHerbs
       @settings = settings
       @owner = Script.current
 
-      # set default values if they don't exist
-      @@categories.each do |_, data|
-        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
-      end
-      # remove settings that doesn't exist
-      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+      Setup.fill_defaults(@settings)
+      Setup.prune(@settings)
 
       # GoS only for Sigil of Mending
       @settings[:use_mending] = false unless Setup.mending_allowed?
@@ -602,46 +585,6 @@ module EHerbs
       return unless $frontend == 'stormfront'
 
       _respond("<output class=\"\"/>\n")
-    end
-
-    def self.update_setting(key, value)
-      setting = Setup.get_setting(key)
-      echo "** Setting #{key.inspect} does not exist" if setting.nil?
-      action = nil
-
-      if value =~ /^([+-])(.*)$/
-        action = Regexp.last_match(1)
-        value = Regexp.last_match(2).strip.downcase
-      end
-
-      if value == 'reset'
-        @settings.delete(key)
-        echo " Reset #{key}"
-      elsif @settings[key].instance_of?(Array)
-        if value =~ /\d/ && @settings[key][value.to_i]
-          @settings[key].delete_at(value.to_i)
-        else
-          @settings[key].delete(value)
-        end
-
-        if action == '-'
-          echo " #{value.inspect} removed from #{key.inspect}"
-        else
-          @settings[key].push(value)
-          echo " #{value.inspect} added to #{key.inspect}"
-        end
-
-        echo " #{key.inspect} is now #{@settings[key].join(', ').inspect}"
-      else
-        if @settings[key].instance_of?(FalseClass) || @settings[key].instance_of?(TrueClass)
-          value = value =~ /^true|1|yes|on/ ? true : false
-        elsif @settings[key].instance_of?(Integer)
-          value = value.to_i
-        end
-
-        echo "#{key.inspect} has been set to #{value.inspect}"
-        @settings[key] = value
-      end
     end
   end
 
