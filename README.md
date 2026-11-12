@@ -39,6 +39,8 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/locksmith.rb` | `EO::Locksmith`: the town locksmith (activator, open, fee) and the locksmith pool (box order, incremental tips, the give, the list and depth, taking boxes back) (from eloot) |
 | `eo/hoard.rb` | `EO::Hoard`: hoarding gems and reagents in jars: label names, the kind check, reading a jar, the stash inventory by looking or from a premium locker manifest, filling and shaking (from eloot) |
 | `eo/casting.rb` | `EO::Casting`: the multicast count by lore, casting at a target (a hindered spell given up after three tries), waiting for mana or stamina and making it (Sign of Wracking, Sigil of Power, Symbol of Mana), another character's active spells, manna bread (from ewaggle) |
+| `eo/brooch.rb` | `EO::Brooch`: the quintuple orb brooch: which orb ANALYZE says is ready, rubbing one (taken from a container and put back), the effects that last |
+| `eo/chain.rb` | `EO::Chain`: chaining bounties: planar and order rubbed before a turn-in, a reducer after it to get under the field experience cap |
 | `eo/cleanse/tables.rb` | `EO::Cleanse`: the dispellable debuffs, the hazards and TARGET's answers, the `Policy`, the spell this character has for a job, whether the wounds allow a cast (the Sigil of Determination cast when it helps) (from ecleanse) |
 | `eo/cleanse/hazards.rb` | `EO::Cleanse::Hazards`: clouds, magic globes, webs and runestones in the room: find one, target it, dispel, cleave or thieve it (counted only when the game says it hit the wards), break a runestone |
 | `eo/cleanse/afflictions.rb` | `EO::Cleanse::Afflictions`: poison and disease, magical debuffs, a root or press, a stun, a web or bind, each cured the first way the policy allows; settling a room before a recovery |
@@ -49,7 +51,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/guild/policy.rb` | `TaskPolicy`: which tasks a character takes, and why one is handed back |
 | `eo/guild/npcs.rb` | find an NPC, the taskmaster (with the Sailor's Grief sweep), a town's guards |
 | `eo/guild/location.rb` | a task's location to a start room and boundaries, capped to a connected region |
-| `eo/guild/forage.rb` | herb rooms by tag and distance, herb name fixes |
+| `eo/guild/forage.rb` | herb rooms by tag and distance, herb name fixes, FORAGE SENSE's slots left, and the forage loop's steps one at a time |
 | `eo/guild/taskmaster.rb` | get, turn in, remove and expedite a task; boosts, vouchers, the cooldown wait |
 | `eo/guild/assignments.rb` | the furrier, herbalist and gem dealer visits that set a task |
 | `eo/guild/guards.rb` | the guard visit that sets or completes a task, heirloom in hand |
