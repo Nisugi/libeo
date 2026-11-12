@@ -14,6 +14,8 @@ module EO
 
     REFUSED_HERE = /^Be at peace my child, there is no need for spells of war in here\.$|Spells of War cannot be cast/
     HINDERED = /^\[Spell Hindrance for/
+    # Casts tried while hindrance stops them, before giving up (bigshot's cast_spell max_attempts).
+    MAX_HINDERED = 3
     WRACK_SIGN = /^You (?:touch|scratch|rub|tap|point to) your (?:right|left) (?:eyebrow|nostril|earlobe|shoulder|cheek) with your (?:right|left) (?:pinky|forefinger|thumb|index finger)/
 
     # How many casts of +spell+ one CAST may carry, by the character's lore
@@ -54,9 +56,9 @@ module EO
     # @param multicast [Integer]
     # @param argument [String, nil] what a self-cast takes (a sonic item's name)
     # @return [Symbol] :success, :refused_here (sanctuary or a no-war room),
-    #   or :bad_target
+    #   :bad_target, or :hindered (hindrance stopped every one of MAX_HINDERED tries)
     def cast(spell, target: nil, multicast: 1, argument: nil)
-      loop do
+      MAX_HINDERED.times do
         result = if target.nil?
                    if argument then spell.cast(argument)
                    elsif multicast > 1 then spell.cast(multicast.to_s)
@@ -70,6 +72,7 @@ module EO
         next if result.to_s =~ HINDERED
         return :success
       end
+      :hindered
     end
 
     # How a character makes mana when short. reserve: mana never spent.

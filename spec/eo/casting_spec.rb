@@ -49,6 +49,10 @@ RSpec.describe EO::Casting do
     self_cast = caster.new(['You cast'])
     described_class.cast(self_cast, argument: 'shield')
     expect(self_cast.sent).to eq(['shield'])
+
+    stuck = caster.new(['[Spell Hindrance for Mage Armor]'] * 5)
+    expect(described_class.cast(stuck)).to eq(:hindered)
+    expect(stuck.sent.size).to eq(described_class::MAX_HINDERED)
   end
 
   it 'gives the resources sensible defaults' do

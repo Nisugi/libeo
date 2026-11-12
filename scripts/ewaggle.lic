@@ -1382,6 +1382,8 @@ module Ewaggle
             when :bad_target
               Ewaggle.data.skip_targets.push(target)
               break
+            when :hindered
+              break # hindrance stopped every try; the next pass tries again
             else
               info[spell.num.to_s] += spell.time_per(target: target) * number_casts
             end
