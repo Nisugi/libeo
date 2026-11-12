@@ -26,7 +26,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/travel.rb` | `EO.go2`, `EO.at?`, `EO.nearest`, `EO.visit`, `EO.room_id`, `EO.wander` (one step, least recently visited first), `EO.fog_wanted?` (bigshot's fog_return rule) |
 | `eo/wander.rb` | `EO::Wander`: a step from anywhere (the Elemental Confluence learned as it is walked), picking a creature to stop for, learning what TARGET accepts (from ewander) |
 | `eo/scripts.rb` | `EO.run_scripts`, `EO.split_script`: the scripts a setting lists, each run to its end |
-| `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime |
+| `eo/command.rb` | `EO.command`, `EO.result`, `EO.settle`: send a command and wait out roundtime; `EO.stand`: STAND a few tries at most |
 | `eo/containers.rb` | `EO::Containers`: open a container only when it is closed, see one open, read contents the game does not refresh; a carried container is asked of Lich's `Inventory`, the rest by LOOK IN |
 | `eo/hands.rb` | `EO::Hands`: free a hand, take an item, wear, put into a container, the READY list; every outcome comes back as a word (from eloot), over Lich's `Stash` for which hand holds what and opening the way to an item |
 | `eo/town.rb` | `EO::Town`: which shop to walk to and whether to go at all, a bounty town's region, Four Winds Isle, the trash can, the locksmith pool's worker (from eloot) |
@@ -40,7 +40,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/hoard.rb` | `EO::Hoard`: hoarding gems and reagents in jars: label names, the kind check, reading a jar, the stash inventory by looking or from a premium locker manifest, filling and shaking (from eloot) |
 | `eo/casting.rb` | `EO::Casting`: the multicast count by lore, casting at a target (a hindered spell given up after three tries), waiting for mana or stamina and making it (Sign of Wracking, Sigil of Power, Symbol of Mana), another character's active spells, manna bread (from ewaggle) |
 | `eo/cleanse/tables.rb` | `EO::Cleanse`: the dispellable debuffs, the hazards and TARGET's answers, the `Policy`, the spell this character has for a job, whether the wounds allow a cast (the Sigil of Determination cast when it helps) (from ecleanse) |
-| `eo/cleanse/hazards.rb` | `EO::Cleanse::Hazards`: clouds, magic globes, webs and runestones in the room: find one, target it, dispel, cleave or thieve it, break a runestone |
+| `eo/cleanse/hazards.rb` | `EO::Cleanse::Hazards`: clouds, magic globes, webs and runestones in the room: find one, target it, dispel, cleave or thieve it (counted only when the game says it hit the wards), break a runestone |
 | `eo/cleanse/afflictions.rb` | `EO::Cleanse::Afflictions`: poison and disease, magical debuffs, a root or press, a stun, a web or bind, each cured the first way the policy allows; settling a room before a recovery |
 | `eo/cleanse/disarms.rb` | `EO::Cleanse::Disarms`: the disarms not yet recovered, kept across restarts; RECOVER ITEM searching, a bonded weapon's return, the spirit servant, prying a webbed weapon, a floated weapon, the Sanctum's clench |
 | `eo/cleanse/traps.rb` | `EO::Cleanse::Traps`: hive traps searched out and disarmed, the itchy curse's safe room and wait, the Sanctum vat |
@@ -82,7 +82,7 @@ leans on Lich's `Injured` (whether wounds allow a cast), `Spell#affordable?`
 ## Why it exists
 
 Every e-script carried its own copy of the same things: the setup window,
-`;script set` parsing, version checks, messages, sending a command and waiting
+`;<script> settings <name> <value>` parsing, version checks, messages, sending a command and waiting
 out roundtime, the go2 wrapper. Each had drifted. They are now one copy here,
 and the game knowledge each script owned (herbs, cleansing, casting, guild
 tasks, looting, wandering) sits beside them so the next script can use it
@@ -97,7 +97,7 @@ What that buys:
 - **Tests.** The library has rspec examples (no running Lich needed); the
   e-scripts had none. eohunter's specs run against libeo's tables.
 - **Behaviour kept.** Every setup window was recorded before and after the
-  move and came out identical, and the `;script set` editor was checked
+  move and came out identical, and the command-line settings editor was checked
   command by command. The intended changes: eloot settings take decimals, and
   two typos fixed.
 - **Closer to Lich.** Where Lich already knows something, the scripts ask it,
@@ -116,7 +116,9 @@ ewaggle 1,805 to 1,510). The gain is one tested copy of what they share.
 | Most of eohunter's actions | eohunter acts through its own testing layer (checked results, interruptible actions); libeo's helpers read Lich directly. Swapping them in would mean redesigning eohunter, so it takes the data, patterns and rules instead. |
 | eohunter's background script starts | They run through eohunter's spec stand-ins, which `EO.run_scripts` doesn't fit. |
 | Mana making through society modules | Not needed: `Spell#affordable?` already has the spirit floor. |
-| Each script's own job | ebounty's bounty flow, eloot's loot and sell loop, ewaggle's spell-up order: one script uses each. |
+| Each script's own job | ebounty's bounty flow, eloot's sell loop, ewaggle's spell-up order: one script uses each. |
+| eloot's looting routine | The corpse search, floor loot, routing each item to its STOW container, boxes, coins, and the container setup at startup. eohunter still launches eloot to loot and skin; calling these in-process would mean moving about 1,400 lines and redesigning how eohunter loots. libeo has the parts (`EO::Loot`, `EO::Skinning`, `EO::Hands`, `EO::Containers`) but not the routine. |
+| BlackArts | Written the same way and full of the same helpers, but left out of this round. Porting it would also mean rebuilding its GTK setup window on the web forms. |
 
 ## Installing
 
@@ -130,8 +132,8 @@ libeo doctor             # what is installed and whether it is intact
 libeo uninstall
 ```
 
-Each command takes `--lich-dir PATH` for a Lich install other than the one
-found. From a checkout, `ruby exe/libeo install --lich-dir PATH` does the
+Lich is found from `--lich-dir PATH`, else the `LICH_DIR` environment
+variable, else the usual install places. From a checkout, `ruby exe/libeo install --lich-dir PATH` does the
 same. The installer carries only the library; the e-scripts in `scripts/*.lic`
 are copied into Lich's `scripts/custom/` by hand while they are being tested.
 
