@@ -14,7 +14,7 @@ EO.require('0.3.0')             the version the script was built against
 
 | File | What it holds |
 |---|---|
-| `eo/version.rb` | `EO.require` and `EO.version`, the version gate; `EO.require_lich`, the Lich version check; `EO.script_version` |
+| `eo/version.rb` | `EO.require` and `EO.version`, the version gate |
 | `eo/help.rb` | `EO.help`, the help table every e-script prints |
 | `eo/messages.rb` | `EO.say` and `EO.word_wrap`: a message the way the e-scripts send one |
 | `eo/settings.rb` | `EO::Settings`: whether the setup window can open, the settings table's lookups and defaults, the profile file, the ListSettingsForm helpers (from the e-scripts' `Setup`) |

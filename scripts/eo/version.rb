@@ -41,44 +41,4 @@ module EO
   def self.version
     VERSION
   end
-
-  # Whether the running Lich is new enough for the calling script, telling
-  # the player how to update when it is not. The script exits on false:
-  #
-  #   exit unless EO.require_lich
-  #
-  # @param wanted [String, nil] the Lich version needed; nil reads the
-  #   script header's "required: Lich >= x.y.z"
-  # @return [Boolean]
-  def self.require_lich(wanted = nil)
-    name = Script.current&.name
-    wanted ||= Script.list.find { |script| script.name == name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
-    return true if wanted.nil? || Gem::Version.new(LICH_VERSION) >= Gem::Version.new(wanted)
-
-    lines = ["Script:#{name} now requires a newer version of Lich(#{wanted}+) to run.",
-             'Please update to a newer version.',
-             '',
-             "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}",
-             'For help updating visit: https://gswiki.play.net/Lich_(software)/Installation']
-    rule = '#' * 40
-    if %w[stormfront profanity].include?($frontend)
-      _respond %(<preset id="speech">#{rule}</preset>)
-      lines.each { |line| _respond(line.empty? ? '' : %(<preset id="thought">#{line}</preset>)) }
-      _respond %(<preset id="speech">#{rule}</preset>)
-    else
-      _respond "###{rule}"
-      lines.each { |line| _respond ">#{line}" }
-      _respond "###{rule}"
-    end
-    false
-  end
-
-  # The version in a running script's header, the way every e-script reads
-  # its own for its titles and help.
-  #
-  # @param name [String] the script's name, the current script by default
-  # @return [String, nil] "major.minor.patch", nil when the script is not running
-  def self.script_version(name = Script.current&.name)
-    Script.list.find { |script| script.name == name }.inspect[/version: (\d+\.\d+\.\d+)/i, 1]
-  end
 end

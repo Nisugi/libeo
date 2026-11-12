@@ -186,7 +186,7 @@
 # needs; load it again unless the one loaded is new enough.
 Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
 EO.require('0.3.0')
-exit unless EO.require_lich('5.22.0')
+Script.require_lich_version!
 
 require 'yaml'
 require 'securerandom'
@@ -312,7 +312,7 @@ module Ecleanse
       @original_settings = Marshal.load(Marshal.dump(settings))
 
       # Get script version
-      @settings[:version] = @version = EO.script_version
+      @settings[:version] = @version = Script.version(Script.current.name).to_s
 
       Setup.fill_defaults(@settings)
       Setup.prune(@settings)

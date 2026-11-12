@@ -11,7 +11,7 @@
   This file only loads the library. The library itself is scripts/eo/, one file per
   concern, each readable on its own:
 
-    eo/version.rb      EO.require / EO.version, the version gate; EO.require_lich, EO.script_version
+    eo/version.rb      EO.require / EO.version, the version gate
     eo/help.rb         EO.help, the help table every e-script prints
     eo/messages.rb     EO.say / EO.word_wrap: a message the way the e-scripts send one
     eo/settings.rb     EO::Settings: whether the setup window can open, the settings table's
@@ -95,8 +95,8 @@
   v0.3.0 (2026-11-12)
     - EO::Settings: the setup window check, the settings table (get_category, get_setting,
       fill_defaults, prune), the profile file and the ListSettingsForm helpers, from the e-scripts
-    - EO.require_lich, EO.script_version, EO.say, EO.word_wrap: the e-scripts' Lich check,
-      version read, message and wrap
+    - EO.say, EO.word_wrap: the e-scripts' message and wrap (the Lich check and the
+      script version are Lich's own: Script.require_lich_version!, Script.version)
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
