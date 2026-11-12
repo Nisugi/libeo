@@ -1,0 +1,1713 @@
+=begin
+
+   Script to heal yourself with herbs.
+
+   Will use herbs in your herbsack, or on a bench or something.
+   Works with any combination of herbs from any town.
+   Can buy herbs.
+   Might heal your traveler.
+
+  ;eherbs help
+
+            author: Elanthia-Online
+      contributors: Tillmen, Tysong, Doug, Rinualdo, Xanlin, Deysh
+              game: Gemstone
+              tags: healing, herbs
+          requires: Lich >= 5.22.0
+           version: 2.4.0
+  2.4.0 (2026-11-12)
+    - the herb table, the wound-to-herb choice, the dose counts, the herb sack, healing,
+      buying and stocking now come from libeo (EO::Herbs); the bank is Lich's Bank. This
+      script keeps its settings, its windows and its command line. Needs libeo 0.2.0 and Lich 5.22.0
+  2.3.0 (2026-11-09)
+    - ;eherbs setup is a Lich WebUI window instead of GTK; same options; Save & Close saves, Cancel or closing the window discards
+    - setup checks Stock to % of Capacity: blank, or a whole number from 0 to 100
+    - ;eherbs settings no longer needs GTK
+  2.2.1 (2026-09-14)
+    - warn on stock when a Survivalist's Kit is used without a stock % set, instead of silently reporting fully stocked
+  2.2.0 (2026-07-13)
+    - add --splitblood option to count and stock major blood separately from acantha; off by default
+    - fix check blood count to total every matching herb across all containers, not just the last item found
+    - fix survival kit stocking at outposts like Pinefar; use the room location when it sells herbs, else nearest town
+  2.1.14 (2026-07-04)
+    - fix silver withdrawals failing on F2P accounts when the bank balance is below the requested amount by depositing held notes to free up silver
+    - add F2P bank balance cap handling to deposits, filling to the cap and converting overflow silver into a stowed note
+  2.1.13 (2026-04-05)
+    - fix for missing eating messaging
+  2.1.12 (2026-03-14)
+    - fix for drinkable status not resetting in rare situations
+  2.1.11 (2026-03-13)
+    - highlight herbs needed for current wounds in the list command
+  2.1.10 (2026-03-10)
+    - case insensitive the container name when finding herb container
+  2.1.9  (2025-11-26)
+    - improve the various look in container regex matches with existing ID in comparison when used in original command
+  2.1.8  (2025-11-03)
+    - fix for buy_herb to rebuy correct amount when not enough money instead of just qty 1
+  2.1.7  (2025-08-05)
+    - fix for Hinterwilds herbs mapdb location including "the"
+  2.1.6  (2025-08-05)
+    - add debug messaging to dead character healing
+  2.1.5  (2025-05-13)
+    - fix for Cysaegir not matching probably for stocking
+  2.1.4  (2025-04-22)
+    - add additional put regex for survival kit when fully stocked
+  2.1.3  (2025-03-25)
+    - remove waitcastrt? from wait_rt method
+    - add waitcastrt? to cast_spells method
+    - add Do Not Buy herbs for Solhaven backroom bundles so can be recognized for usage by eherbs
+    - bugfix in check_herbs_in_container method for nil measures
+    - bugfix in get_current_stock to also count herbs in a survival kit that are currently solid/liquid doses
+    - redetect survival kit if changed stock, distiller or herb_sack changed in currenct session
+  2.1.2  (2025-02-22)
+    - add additional unpoison herbs
+    - add logic to eat/drink poison & disease curing herbs
+    - bugfix for cached pricing of herbalist in distant town but starting in different area
+    - remove deprecated calls to maxhealth & checkhealth
+    - update logic of survival kits to include non-bundled liquid/solid doses
+  2.1.1  (2025-02-20)
+    - change ;eherbs load to also redetermine survival kit
+  2.1.0  (2025-01-19)
+    - add --spellcast and --ranged options to healdown to be able to do those again
+  2.0.18 (2025-01-06)
+    - fix for min_stock_doses to persist thru current session running
+  2.0.17 (2025-01-06)
+    - fix for survival_kit to persist thru current session running
+    - fix for not being able to analyze kit during distill function
+  2.0.16 (2024-12-06)
+    - add additional debug messaging
+  2.0.15 (2024-10-10)
+    - skip herbs that can't be bundled when bundling herbs
+  2.0.14 (2024-09-25)
+    - bugfix for depositing in Pinefar, need to wait for banker
+  2.0.13 (2024-08-30)
+    - bugfix for excessive ANALYZE for survival kits logic
+    - bugfix for wait_rt method
+  2.0.12 (2024-08-27)
+    - adjust doses for Ta'Vaalor
+    - update note buying process for in-hand recognition
+    - bugfix in stock_requested_herbs when not using a note
+  2.0.11 (2024-08-26)
+    - Add missing Ta'Vaalor tinctures
+  2.0.10 (2024-08-15)
+    - bugfix failed finding blood herbs if use_yaba is on with no yaba found
+  2.0.9 (2024-07-20)
+    - change note variable to just use the noun instead of full name
+    - use quiet command for _injury 2
+    - consolidate inventory check methods
+    - general code consolidation
+    - change log added to wiki
+  2.0.8 (2024-07-12)
+    - pause script ego2 if running
+  2.0.7 (2024-07-12)
+    - drinkable variable not being set when buying
+  2.0.6 (2024-07-10)
+    - changed drinkable boolean in favor of checking regex during herb usage or boolean
+  2.0.5 (2024-01-17)
+    - fix for wrong variable reference
+  2.0.4 (2024-01-03)
+    - bugfix for Zul Logoth location check
+  2.0.3 (2024-01-01)
+    - bugfix for use_potions variable
+  2.0.2 (2023-12-15)
+    - send injury command to refresh XML before attempting to heal self incase missing injury from XML
+  2.0.1 (2023-11-10)
+    - bugfix to use id instead of name for distiller
+    - added setting output for debugging ;eherbs settings
+  Previous change logs can be found on the wiki: https://gswiki.play.net/Lich:Script_Eherbs
+=end
+
+# FIXME: escort healing doesn't heal blood
+# fixme: garland of sovyn cloves
+# fixme: skip more better
+# fixme: buy herbs/right hand full
+
+# possible eherbs to do: clean up dupes. Find missing herbs. Maybe add big/small blood, add backroom items
+
+# Check version of Lich for compatibility
+
+Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+EO.require('0.2.0')
+
+module EHerbs
+  @@data ||= nil
+  @@sack ||= nil
+  @@survival_kit ||= nil
+  @@min_stock_doses ||= EO::Herbs::Table::DEFAULT_DOSES.dup
+
+  def self.survival_kit
+    @@survival_kit
+  end
+
+  def self.survival_kit=(value)
+    @@survival_kit = value
+  end
+
+  def self.min_stock_doses
+    @@min_stock_doses
+  end
+
+  def self.min_stock_doses=(value)
+    @@min_stock_doses = value
+  end
+
+  def self.data
+    @@data
+  end
+
+  # The herb table and its lookups are libeo's (EO::Herbs::Table).
+  def self.known_herbs = EO::Herbs::Table::KNOWN
+  def self.major_blood?(herb) = EO::Herbs::Table.major_blood?(herb)
+  def self.blood_tier(herb) = EO::Herbs::Table.blood_tier(herb)
+  def self.blood_bucket(herb) = EO::Herbs::Table.blood_bucket(herb, split: (@@data && @@data[:split_blood]) ? true : false)
+  def self.herb_in_category?(herb, category) = EO::Herbs::Table.in_category?(herb, category)
+  def self.location_stocked?(location) = EO::Herbs::Table.sold_at?(location)
+
+  # The dose monitor is libeo's; it keeps the $eherbs_measure hash as before.
+  def self.exec_str
+    EO::Herbs::Doses.install
+    before_dying { EO::Herbs::Doses.remove }
+  end
+
+  def self.load_eherbs_settings
+    settings_hash = {
+      :buy_missing     => CharSettings['buy_missing'],
+      :deposit_coins   => CharSettings['deposit_coins'],
+      :use_mending     => CharSettings['use_mending'],
+      :skip_scars      => CharSettings['skip_scars'],
+      :blood_toggle    => CharSettings['blood_toggle'],
+      :use650          => CharSettings['use650'],
+      :use1035         => CharSettings['use1035'],
+      :use_yaba        => CharSettings['use_yaba'],
+      :split_blood     => CharSettings['split_blood'],
+      :use_potions     => CharSettings['use_potions'],
+      :stock           => CharSettings['stock'],
+      :distiller       => CharSettings['distiller'],
+      :prices          => CharSettings['prices'],
+      :herb_container  => UserVars.herbsack,
+      :drinkable       => /\b(?:potion|tea|elixir|brew|tincture|ale|soup|porter)\b/i,
+      :skippable       => [],
+      :close_herbsack  => false,
+      :done_empty_hand => false,
+      :preposition     => nil,
+      :return_to_stow  => false,
+      :herb_sack       => nil,
+      :survival_kit    => EHerbs.survival_kit,
+      :shopping_list   => [],
+      :start_room      => Room.current,
+      :herb_shop_menu  => nil,
+      :silvers         => nil,
+      :withdraw_amount => 8000,
+      :used_herbs      => [],
+      :get_from        => nil,
+      :heal_cutthroat  => true,
+      :use_npchealer   => true,
+      :no_get          => false,
+      :blood_only      => false,
+      :need_deposit    => false,
+      :need_return     => false,
+      :debug           => CharSettings['debug'],
+    }
+
+    settings_hash[:note] = nil
+
+    settings_hash[:open_regex] = Regexp.union(
+      /You throw back/i,
+      /You open/i,
+      /Oh no! It's already/i,
+      /You pick at the knot/i,
+      /already open/i,
+      /is open already/i,
+      /You unfasten/i,
+      /You glance around suspiciously/i,
+      /^What were you referring to\?/i,
+      /^I could not find what you were referring to\./i,
+      /You pull the long strips of leather/i,
+      /With a flick of your wrist/i,
+      /Sliding the lever on the side/i,
+      /You rub your hand/i,
+      /There doesn't seem to be any way/i,
+      /(?:Roundtime:|\.\.\.wait) (\d+) [Ss]ec(?:onds)?\./i,
+      /crumbles? and decays? away/,
+      /Myriad spectral moths pull a cloakwing/,
+      /<exposeContainer|<container/i
+    )
+
+    settings_hash[:needs_closed] = Regexp.union(
+      /You throw back/i,
+      /You open/i,
+      /You pick at the knot/i,
+      /You unfasten/i,
+      /With a quick glance over your shoulder/i,
+      /You pull the long strips of leather/i,
+      /With a flick of your wrist/i,
+      /Sliding the lever on the side/i,
+      /You rub your hand/i,
+      /Myriad spectral moths pull a cloakwing moth/,
+    )
+
+    settings_hash[:look_regex] = Regexp.union(
+      /Peering into the <a exist=.*? noun="toolkit">/i,
+      /That is closed/i,
+      /is shut too tightly to see its contents/i,
+      /In the(.*?)you see/i,
+      /In the(.*?):/i,
+      /There is nothing/i,
+      /You glance/i,
+      /^Attached to a.*keyring/i,
+      /.*?[.*?]:/i,
+      %r{The <a exist="\d+" noun="\w+">[^<]+</a> has (?:an? <a exist="\d+" noun="\w+">[^<]+</a> |nothing )?in.*scabbard and (?:an? <a exist="\d+" noun="\w+">[^<]+</a> |nothing )?in.*scabbard\.}i,
+      /^I could not find what you were referring to\./i,
+      /Hidden within the depths of a cloakwing moth greatcloak/,
+      /<exposeContainer|<dialogData|<container/i
+    )
+
+    settings_hash[:close_regex] = Regexp.union(
+      /^You (?:reach over your \w+ and )?close/,
+      /^That is already closed/,
+      /As you push/,
+      /You tie/
+    )
+
+    settings_hash[:put_regex] = Regexp.union(
+      /^You (?:put|(?:discreetly )?tuck|attach|toss|attempt to shield your|place|.* place|slip|wipe off the blade and sheathe|absent-mindedly drop|carefully add|find an incomplete bundle|untie your drawstring pouch)/,
+      /^The .+ is already a bundle/,
+      /^Your bundle would be too large if you tried to add that/,
+      /^The .+ is too large to be bundled\./,
+      /^As you place your .+ inside your .+, you notice another .+ inside the .+ and carefully arrange the two .+ into a neat bundle\./,
+      /If you wish to continue, throw the item away again within fifteen seconds/,
+      /you feel pleased with yourself at having cleaned up the surrounding area/,
+      /over your shoulder/,
+      /two items in that location/,
+      /wear three functional items/,
+      /^Your .*? won't fit in .*?\.$/,
+      /You add/,
+      /You find a suitable/,
+      /^Your .+ is already fully stocked with (?:solid|liquid) \w+\.  You put .+ in your .+\.$/
+    )
+
+    settings_hash[:get_regex] = Regexp.union(
+      /^You (?:shield the opening of .*? from view as you |discreetly |carefully |deftly|just )?(?:remove|pick up|draw|grab|reach|slip|tuck|retrieve|already have|unsheathe|detach|swap)/,
+      /^Get what\?$/,
+      /^Why don't you leave some for others\?$/,
+      /^You need a free hand/,
+      /^You already have that/,
+      /You just poured yourself/,
+      /You retrieve/,
+      /You break off/
+    )
+
+    settings_hash[:cant_bundle] = /tart|feather|special|blubber|pie|porridge|soup|fruit/i
+
+    settings_hash[:min_stock_doses] = EHerbs.min_stock_doses
+
+    # 5 main areas: 'head', 'neck', 'torso', 'limbs', 'nerves'
+    # Wound method => herb area
+    settings_hash[:areas] = { 'head' => 'head', 'neck' => 'head', 'torso' => 'organ', 'limbs' => 'limb', 'nerves' => 'nerve' }
+
+    settings_hash[:var_names] = {
+      'buy'         => 'buy_missing',
+      'buy-missing' => 'buy_missing',
+      'deposit'     => 'deposit_coins',
+      'mending'     => 'use_mending',
+      'skipscars'   => 'skip_scars',
+      '650'         => 'use650',
+      '1035'        => 'use1035',
+      'yaba'        => 'use_yaba',
+      'splitblood'  => 'split_blood',
+      'potions'     => 'use_potions'
+    }
+
+    settings_hash
+  end
+
+  def self.load(settings)
+    @@data = settings
+  end
+
+  def self.save_eherbs_settings(settings)
+    CharSettings['buy_missing']   = settings[:buy_missing]
+    CharSettings['deposit_coins'] = settings[:deposit_coins]
+    CharSettings['use_mending']   = settings[:use_mending]
+    CharSettings['skip_scars']    = settings[:skip_scars]
+    CharSettings['blood_toggle']  = settings[:blood_toggle]
+    CharSettings['use650']        = settings[:use650]
+    CharSettings['use1035']       = settings[:use1035]
+    CharSettings['use_yaba']      = settings[:use_yaba]
+    CharSettings['split_blood']   = settings[:split_blood]
+    CharSettings['use_potions']   = settings[:use_potions]
+    CharSettings['stock']         = settings[:stock]
+    CharSettings['distiller']     = settings[:distiller]
+    CharSettings['prices']        = settings[:prices]
+    UserVars.herbsack             = settings[:herb_container]
+  end
+
+  # The herb sack as the library sees it, found from the settings on first
+  # use. EHerbs.data[:herb_sack] stays the GameObj for the listings.
+  def self.sack
+    return @@sack if @@sack
+    if @@data[:herb_container].to_s.empty?
+      echo 'error: no herbsack set.'
+      exit
+    end
+    begin
+      use_sack(EO::Herbs::Sack.find(@@data[:herb_container]))
+    rescue EO::Guild::Error => e
+      echo "error: #{e.message}"
+      exit
+    end
+  end
+
+  # A container named on the command line, in the inventory or in the room.
+  def self.use_named_sack(name)
+    use_sack(EO::Herbs::Sack.named(name, preposition: @@data[:preposition] || 'in'))
+  rescue EO::Guild::Error => e
+    _respond Msg.monsterbold(" #{e.message}. Exiting...")
+    exit
+  end
+
+  def self.use_sack(sack)
+    @@sack = sack
+    @@data[:herb_sack] = sack.obj
+    @@data[:preposition] ||= sack.preposition
+    Utility.determine_survival_kit(sack) if sack.carried? && @@data[:survival_kit].nil?
+    sack
+  end
+
+  # Put back the herbs the run took out, and reread a room container.
+  def self.stow_used
+    Utility.go2(@@data[:start_room].id.to_s) if @@data[:return_to_stow]
+    relook = false
+    [GameObj.right_hand, GameObj.left_hand].each do |hand|
+      next unless @@data[:used_herbs].include?(hand.id)
+      Utility.store_herb(hand)
+      fput("stow #{hand.id == GameObj.right_hand.id ? 'right' : 'left'}") if [GameObj.right_hand, GameObj.left_hand].map(&:id).include?(hand.id)
+      relook = true
+    end
+    sack.contents if %w[under behind].include?(@@data[:preposition]) && relook
+  end
+
+  # ;eherbs setup: a Lich WebUI settings form with the same options as the old
+  # GTK window. Save & Close saves (through EHerbs.load) and ;eherbs setup then
+  # writes them out; Cancel or closing the window discards.
+  # The class also backs ;eherbs settings (list), which now works without GTK.
+  class Setup
+    attr_accessor :settings
+
+    # Lich keeps this class between runs in a session; start each run clean.
+    constants(false).each { |name| remove_const(name) }
+
+    PAGE_ID = 'eherbs-setup'
+
+    @@categories = {
+      general: {
+        :buy_missing    => { default: false },
+        :deposit_coins  => { default: false },
+        :use_mending    => { default: false },
+        :skip_scars     => { default: false },
+        :blood_toggle   => { default: false },
+        :herb_container => { default: '' },
+        :use650         => { default: false },
+        :use1035        => { default: false },
+        :use_yaba       => { default: false },
+        :split_blood    => { default: false },
+        :use_potions    => { default: false },
+        :stock          => { default: '' },
+        :distiller      => { default: false },
+      }
+    }
+
+    def self.available?
+      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
+        defined?(Lich::WebUI::SettingsForm) ? true : false
+    end
+
+    def self.get_category(key)
+      @@categories.each { |category, data| return category unless data[key].nil? }
+      nil
+    end
+
+    def self.get_setting(key)
+      cat = Setup.get_category(key)
+      return nil if cat.nil?
+
+      @@categories[cat].each { |setting, data| return data if setting == key }
+      nil
+    end
+
+    def self.mending_allowed? = Society.status == 'Guardians of Sunfist' && Society.rank >= 13
+
+    def initialize(settings)
+      @settings = settings
+      @owner = Script.current
+
+      # set default values if they don't exist
+      @@categories.each do |_, data|
+        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
+      end
+      # remove settings that doesn't exist
+      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+
+      # GoS only for Sigil of Mending
+      @settings[:use_mending] = false unless Setup.mending_allowed?
+    end
+
+    # Options this character cannot use, greyed out as in the old window.
+    def disabled?(key)
+      case key
+      when :use_mending then !Setup.mending_allowed?
+      when :use650 then !Spell[650].known?
+      when :use1035 then !Spell[1035].known?
+      else false
+      end
+    end
+
+    def start
+      setup = self
+      form = nil
+      values = @settings.merge(herb_container: @settings[:herb_container].to_s.strip, stock: @settings[:stock].to_s.strip)
+      form = Lich::WebUI::SettingsForm.new(
+        owner: @owner, id: PAGE_ID, title: 'EHerbs Setup', values: values, fields: fields,
+        props: { size: [700, 440], viewport: true },
+        normalize: ->(draft) { setup.normalize(draft) },
+        layout: ->(ui, field, save) { setup.render(ui, field, save, -> { form.close }) }
+      )
+      result = form.show.wait
+      if result
+        EHerbs.load(result)
+      else
+        respond ' EHerbs setup closed WITHOUT saving. Use the Save & Close button to save.'
+      end
+      result
+    end
+
+    STOCK_TIP = "When using ;eherbs stock it will fill your herb sack to a percentage of it's capacity.\n" \
+                'Primarily intended for survival kits but will work for ordinary containers.'
+    DISTILLER_TIP = 'Checks the survival kit when eherbs is used and keeps the distiller active. ' \
+                    'Survival kits were introduced at Dusk Ruin 2023 as a special herb container.'
+    SPLIT_BLOOD_TIP = "Count and stock major blood (yabathilium, Bloody Krolvin ale, Olak's Ol'style ale, green mushroom potion, " \
+                      'sassafras tea) separately from acantha. When off, all blood herbs are combined as before.'
+    CHECKS = [
+      [:buy_missing, 'Buy missing herbs'], [:deposit_coins, 'Deposit Coins'], [:use_mending, 'Use Sigil of Mending'],
+      [:skip_scars, 'Skip level 1 scars'], [:blood_toggle, 'Heal Blood Only'],
+      [:use650, 'Assume Aspect (650) Yierka'], [:use_yaba, 'Use yabathilium first'],
+      [:distiller, 'Use Distiller (survival kits only)', DISTILLER_TIP], [:use1035, 'Song of Tonis (1035)'],
+      [:use_potions, 'Try to use potions before plants'], [:split_blood, 'Separate major/minor blood', SPLIT_BLOOD_TIP]
+    ].freeze
+
+    def fields
+      checks = CHECKS.map do |key, label, tip|
+        field = { key: key, type: :checkbox, label: label, disabled: disabled?(key) }
+        field[:tooltip] = tip if tip
+        field
+      end
+      checks + [
+        { key: :herb_container, type: :text_input },
+        { key: :stock, type: :text_input, placeholder: '0 - 100', tooltip: STOCK_TIP },
+      ]
+    end
+
+    # Trims text and accepts a blank stock or a whole number from 0 to 100.
+    def normalize(draft)
+      draft[:herb_container] = draft[:herb_container].to_s.strip
+      stock = draft[:stock].to_s.strip.delete('%')
+      unless stock.empty?
+        raise ArgumentError, 'Stock to % of Capacity must be a whole number from 0 to 100, or blank.' unless stock.match?(/\A\d+\z/) && stock.to_i <= 100
+
+        stock = stock.to_i
+      end
+      draft[:stock] = stock
+      CHECKS.each { |key, _| draft[key] = draft[key] ? true : false }
+      draft
+    end
+
+    def render(ui, field, save, cancel)
+      ui.stack(key: 'eherbs', gap: 6, margin: 8, fill: true) do
+        ui.scroll(key: 'body', fill: true) do
+          ui.stack(key: 'panels', gap: 8) do
+            ui.group(key: 'general', label: 'General') do
+              ui.columns(key: 'general-cols', count: 2, weights: [2, 3], gap: 12, row_align: :start) do
+                ui.stack(slot: '0', key: 'general-checks', gap: 4) do
+                  %i[buy_missing deposit_coins use_mending skip_scars blood_toggle].each { |key| field.call(ui, key) }
+                end
+                ui.grid(slot: '1', key: 'general-values', cols: 2, homogeneous: false, expand_columns: [2], row_gap: 6, column_gap: 10) do
+                  ui.text(key: 'l-sack', content: 'Herb Sack')
+                  field.call(ui, :herb_container)
+                  ui.text(key: 'l-stock', content: 'Stock to % of Capacity')
+                  field.call(ui, :stock)
+                end
+              end
+            end
+            ui.group(key: 'misc', label: 'Misc') do
+              # flow: as many of the 3 columns as fit; reflows with the window.
+              ui.grid(key: 'misc-checks', cols: 3, flow: true, gap: 4) do
+                %i[use650 use_yaba distiller use1035 use_potions split_blood].each { |key| field.call(ui, key) }
+              end
+            end
+          end
+        end
+        ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
+          ui.text(slot: '0', key: 'footer-text', emphasis: :subtle, content: 'Cancel or closing the window discards changes.')
+          ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
+          save.call(ui, slot: '2', variant: :primary)
+        end
+      end
+    end
+
+    def list(cat_to_list: 'all')
+      indent_size = 2
+      print_array =
+        proc do |key, value, indent|
+          _respond("#{' ' * indent_size * indent.to_i}#{key}:")
+          value.sort!.each { |entry| _respond("#{' ' * indent_size * (indent.to_i + 1)}#{value.index(entry) + 1}. #{entry}") }
+        end
+
+      print_value = proc { |key, value, indent| _respond("#{' ' * indent_size * indent.to_i}#{key}: #{value}") }
+
+      categories = cat_to_list == 'all' ? %w[general] : [cat_to_list]
+
+      output = if $frontend == 'stormfront'
+                 "<output class=\"mono\"/>\n"
+               else
+                 String.new
+               end
+      if EHerbs.data[:herb_sack].nil?
+        EHerbs.data[:herb_sack] = Utility.find_herbsack
+      end
+
+      categories.each do |opt|
+        _respond(output) unless output.empty?
+        _respond("#{monsterbold_start}= #{opt.capitalize} =#{monsterbold_end}\n")
+        @@categories[opt.to_sym].each do |id, _|
+          if id == :herb_container
+            value = "id: #{EHerbs.data[:herb_sack].id} | name: #{EHerbs.data[:herb_sack].name}"
+          else
+            value = @settings[id]
+          end
+          value.instance_of?(Array) ? print_array.call(id, value, 1) : print_value.call(id, value, 1)
+        end
+      end
+
+      herb_names = []
+      EHerbs.data[:herb_sack].contents.each { |herb|
+        next unless herb.type =~ /herb/
+        herb_names << herb.name
+      }
+      _respond
+      _respond("#{' ' * indent_size}#{Msg.title_case(EHerbs.data[:herb_sack].name)} herbs:")
+
+      herb_names.uniq.each { |item| _respond("#{' ' * indent_size} #{item}") }
+      _respond
+
+      return unless $frontend == 'stormfront'
+
+      _respond("<output class=\"\"/>\n")
+    end
+
+    def self.update_setting(key, value)
+      setting = Setup.get_setting(key)
+      echo "** Setting #{key.inspect} does not exist" if setting.nil?
+      action = nil
+
+      if value =~ /^([+-])(.*)$/
+        action = Regexp.last_match(1)
+        value = Regexp.last_match(2).strip.downcase
+      end
+
+      if value == 'reset'
+        @settings.delete(key)
+        echo " Reset #{key}"
+      elsif @settings[key].instance_of?(Array)
+        if value =~ /\d/ && @settings[key][value.to_i]
+          @settings[key].delete_at(value.to_i)
+        else
+          @settings[key].delete(value)
+        end
+
+        if action == '-'
+          echo " #{value.inspect} removed from #{key.inspect}"
+        else
+          @settings[key].push(value)
+          echo " #{value.inspect} added to #{key.inspect}"
+        end
+
+        echo " #{key.inspect} is now #{@settings[key].join(', ').inspect}"
+      else
+        if @settings[key].instance_of?(FalseClass) || @settings[key].instance_of?(TrueClass)
+          value = value =~ /^true|1|yes|on/ ? true : false
+        elsif @settings[key].instance_of?(Integer)
+          value = value.to_i
+        end
+
+        echo "#{key.inspect} has been set to #{value.inspect}"
+        @settings[key] = value
+      end
+    end
+  end
+
+  # What the script does, each over the library with this script's settings.
+  module Actions
+    def self.sack = EHerbs.sack
+
+    def self.bank_balance_message
+      _respond
+      _respond Msg.monsterbold('You have no coins in the bank, moving back to starting point')
+      _respond
+      sleep 2
+      Utility.go2(EHerbs.data[:start_room].id.to_s)
+      exit
+    end
+
+    # Fetch the withdrawal amount from the bank; Lich's Bank knows Pinefar,
+    # free-to-play caps and notes.
+    def self.withdraw
+      original_room = Room.current.id
+      Utility.check_cutthroat
+      Utility.go2('bank')
+      fput 'unhide' if invisible?
+      amount = EHerbs.data[:withdraw_amount].to_i
+      got = Lich::Gemstone::Bank.withdraw(Lich::Gemstone::Bank.pinefar? ? [amount, 20].max : amount)
+      bank_balance_message if got.nil?
+      EHerbs.data[:silvers] = Utility.check_silver
+      EHerbs.data[:need_deposit] = true if EHerbs.data[:deposit_coins]
+      Utility.go2(original_room)
+    end
+
+    def self.deposit
+      return unless Utility.check_silver > 0
+      Utility.go2('bank')
+      Lich::Gemstone::Bank.deposit
+    end
+
+    # A note for a shopping run, kept in the sack until the herbalist.
+    def self.withdraw_note(amount)
+      original_room = Room.current.id
+      Utility.check_cutthroat
+      Utility.go2('bank')
+      if Lich::Gemstone::Bank.pinefar?
+        Actions.withdraw if Utility.check_silver < EHerbs.data[:withdraw_amount]
+        EHerbs.data[:need_deposit] = true if EHerbs.data[:deposit_coins]
+        Utility.go2(original_room)
+        return
+      end
+      empty_hand
+      got = Lich::Gemstone::Bank.withdraw(amount.to_i, note: true)
+      20.times do
+        break if Lich::Gemstone::Bank.note_in_hand
+        sleep 0.1
+      end
+      # Kraken's Fall hands over a chit with wording Lich's Bank reads as a refusal;
+      # the note in hand is the proof that counts.
+      if got.nil? && Lich::Gemstone::Bank.note_in_hand.nil?
+        _respond Msg.monsterbold('** Insufficient funds! Exiting **')
+        exit
+      end
+      EHerbs.data[:note] = Lich::Gemstone::Bank.note_in_hand
+      sack.store(EHerbs.data[:note]) if EHerbs.data[:note]
+      fill_hand
+      Utility.go2(original_room)
+    end
+
+    def self.deposit_note
+      original_room = Room.current.id
+      Utility.check_cutthroat
+      Utility.go2('bank')
+      if Lich::Gemstone::Bank.pinefar?
+        Actions.deposit
+        return
+      end
+      sack.take(EHerbs.data[:note]) if EHerbs.data[:note]
+      Lich::Gemstone::Bank.deposit_note
+      EHerbs.data[:note] = nil
+      Utility.go2(original_room)
+    end
+
+    def self.menu
+      EHerbs.data[:herb_shop_menu] ||= EO::Herbs::Shop.menu
+    end
+
+    # Prices here, read once per herbalist and kept in CharSettings.
+    def self.check_prices
+      EHerbs.data[:prices] ||= {}
+      herbalist = Room.current.find_nearest_by_tag('herbalist')
+      unless EHerbs.data[:prices][herbalist].is_a?(Hash) && EHerbs.data[:prices][herbalist].values.first.is_a?(Hash)
+        Utility.go2('herbalist')
+        _respond Msg.monsterbold(' Checking prices at this location. Will only do this one time')
+        EHerbs.data[:prices][herbalist] = EO::Herbs::Shop.prices(Actions.menu)
+        CharSettings['prices'] = EHerbs.data[:prices]
+      end
+      EHerbs.data[:prices][herbalist]
+    end
+
+    def self.buy_herb(herb_type, amount = 1)
+      EHerbs.data[:need_return] = true
+      EHerbs.data[:silvers] = Utility.check_silver
+      item = EO::Herbs::Shop.buy(herb_type, amount, menu: Actions.menu, sack: sack,
+                                 more_silver: -> { Actions.withdraw; Utility.go2('herbalist') })
+      EHerbs.data[:silvers] = Utility.check_silver
+      item
+    rescue EO::Guild::Error => e
+      _respond
+      _respond Msg.monsterbold(" error: #{e.message}")
+      _respond
+      exit
+    end
+
+    def self.bundle_all(herb = nil)
+      EO::Herbs::Shop.bundle_all(sack, herb)
+    end
+
+    # Combine what is in both hands; two different herbs means a move
+    # between areas, which only the player can sort out.
+    def self.bundle_herb
+      return unless EO::Herbs::Shop.bundle_hands == :mismatch
+      respond
+      respond Msg.monsterbold("The herbs don't match! Your old herb is in your right hand, and you bought the one in your left.")
+      respond
+      respond "This happens when you move areas.  What you should do depends on how long you'll be in the area.  If you're moving permanently, throw the herbs in your right hand away and put the herbs in your left hand in your #{EHerbs.data[:herb_sack]}."
+      respond "If you're only visiting temporarily, put the herbs in your right hand in another container for your return and put the herbs in your left hand in your #{EHerbs.data[:herb_sack]}."
+      respond
+      respond "When finished, run #{$clean_lich_char}#{Script.current.name} with your stocking options again."
+      exit
+    end
+
+    def self.policy
+      EO::Herbs::Heal::Policy.new(
+        use_mending: EHerbs.data[:use_mending], use1035: EHerbs.data[:use1035], use650: EHerbs.data[:use650],
+        use_yaba: EHerbs.data[:use_yaba], use_potions: EHerbs.data[:use_potions], skip_scars: EHerbs.data[:skip_scars],
+        blood_only: EHerbs.data[:blood_only], no_get: EHerbs.data[:no_get], spellcast_only: EHerbs.data[:spellcast_only],
+        ranged_only: EHerbs.data[:ranged_only], buy_missing: EHerbs.data[:buy_missing]
+      )
+    end
+
+    def self.cast_spells = EO::Herbs::Heal.cast_spells(policy)
+
+    # Buy a type the sack lacks and come back with it in hand.
+    def self.buy_for_healing(herb_type)
+      EHerbs.stow_used
+      EHerbs.data[:silvers] = Utility.check_silver unless EHerbs.data[:silvers]
+      Actions.withdraw unless EHerbs.data[:silvers] > 4000
+      Utility.go2('herbalist')
+      Actions.buy_herb(herb_type)
+      herb = EO::Herbs::Sack.herb_in_hand
+      if herb.nil?
+        _respond Msg.monsterbold(" Not able to find #{herb_type} in #{Room[Room.current.find_nearest_by_tag('town')].location}")
+        _respond Msg.monsterbold(' Report this to EO on the scripting Discord')
+        exit
+      end
+      herb
+    end
+
+    def self.use_herbs
+      before_sack = EHerbs.data[:return_to_stow] ? -> { Utility.go2(EHerbs.data[:start_room].id.to_s) } : nil
+      result = EO::Herbs::Heal.use(sack: sack, policy: policy, used: EHerbs.data[:used_herbs],
+                                   buy: EHerbs.data[:buy_missing] ? ->(type) { Actions.buy_for_healing(type) } : nil,
+                                   before_sack: before_sack)
+      case result.outcome
+      when :must_take
+        _respond Msg.monsterbold(' You have --no-get flagged but are required to pick up the herb.')
+        exit
+      when :enough
+        _respond Msg.monsterbold(" You have eaten enough from the #{EHerbs.data[:herb_sack]}.")
+        exit
+      end
+    rescue EO::Guild::Error => e
+      echo " #{e.message}"
+      exit
+    end
+
+    def self.deader(character)
+      result = EO::Herbs::Heal.deader(character, sack: sack, full: Script.current.vars[2] =~ /full/ ? true : false,
+                                      used: EHerbs.data[:used_herbs])
+      case result
+      when :not_found then respond " #{Script.current.vars[1]} not found"
+      when :done then respond " #{character}: Healdown finished. Exiting..."
+      when :missing then respond ' Missing a needed potion to finish healing. Exiting...'
+      end
+      EHerbs.stow_used
+      fill_right_hand
+    rescue EO::Guild::Error => e
+      echo "error: #{e.message}"
+      sack.close if sack.close_after
+      exit
+    end
+
+    def self.escort
+      if Script.current.vars[2]
+        unless (npc = GameObj.npcs.find { |n| (n.id == Script.current.vars[2]) || (n.noun == Script.current.vars[2]) })
+          echo "Failed to find an npc with id or noun #{Script.current.vars[2]}."
+          exit
+        end
+      else
+        unless (npc = GameObj.npcs.find { |n| n.type =~ /escort/ })
+          echo 'Failed to find an escort.'
+          exit
+        end
+      end
+      case EO::Herbs::Heal.escort(npc, sack: sack, used: EHerbs.data[:used_herbs])
+      when :timeout then echo "error: timeout while trying to look at escort (#{npc.name}, #{npc.id})"
+      when :not_seen then echo "error: can't see escort"
+      when :fine then echo 'nothing to do'
+      when :done
+        EHerbs.stow_used
+        fill_right_hand
+      end
+      sack.close if sack.close_after
+      exit
+    rescue EO::Guild::Error => e
+      echo "error: #{e.message}"
+      sack.close if sack.close_after
+      exit
+    end
+
+    # One of each herb this location sells that the sack has none of.
+    def self.fill_herbs
+      did_something = false
+      Utility.assert_herbsack_var
+      sack.open
+      while (item = EO::Herbs::Sack.herb_in_hand)
+        Utility.store_herb(item)
+      end
+      missing = EO::Herbs::Shop.missing_types(sack.contents)
+      unless missing.empty?
+        EHerbs.data[:silvers] = Utility.check_silver
+        Actions.withdraw unless EHerbs.data[:silvers] > 4000
+        Utility.go2('herbalist')
+        empty_hands
+        missing.each do |herb_type|
+          Actions.buy_herb(herb_type)
+          item = EO::Herbs::Sack.herb_in_hand
+          Utility.store_herb(item) if item
+          did_something = true
+        end
+        sack.close if sack.close_after
+        Actions.deposit
+        Utility.go2(EHerbs.data[:start_room].id.to_s) if Room.current.id != EHerbs.data[:start_room].id
+        fill_hands
+      end
+      _respond
+      _respond Msg.monsterbold("#{did_something ? 'Done' : 'Nothing to do'} - you have one of each herb available at this location.")
+      _respond
+      exit
+    end
+
+    # Where herbs are bought from here: this location when it sells them,
+    # else the nearest town.
+    def self.shop_location
+      here = Room.current.location
+      EHerbs.location_stocked?(here) ? here : Room[Room.current.find_nearest_by_tag('town')].location
+    end
+
+    # The shopping list for these categories, kept where the listing reads it.
+    def self.shopping_list(categories, form = nil)
+      EHerbs.data[:shopping_list] = EO::Herbs::Shop.shopping_list(sack, categories, targets: EHerbs.data[:min_stock_doses],
+                                                                  location: shop_location, form: form)
+    end
+
+    def self.stock_herbs
+      both = false
+      Utility.assert_herbsack_var
+      script_var2 = Script.current.vars[2].downcase
+
+      if Room.current.location =~ /Icemule Trace|the Pinefar Trading Post|the town of Kharam-Dzu|Ta'Illistim|Cysaegir|the hamlet of Ravelin|Zul Logoth/ && !sack.survival_kit
+        _respond
+        _respond Msg.monsterbold(' This location only uses drinkable or non-bundling herbs, so bundling does not work.')
+        _respond Msg.monsterbold(' You should use the ') + "#{$clean_lich_char}#{Script.current.name} fill" + Msg.monsterbold(' feature for this location.')
+        _respond
+        exit
+      end
+
+      Utility.warn_unset_stock_percent
+      sack.open
+      if script_var2.nil? || (script_var2 =~ /potions|herbs|major|minor|missing|severed|blood|combined/)
+        blood_categories = EHerbs.data[:split_blood] ? ['minor blood', 'major blood'] : ['blood']
+        herb_type_list = blood_categories + EO::Herbs::Table::HERB_TYPES
+        potion_type_list = EO::Herbs::Table::POTION_TYPES
+        if script_var2 == 'potions'
+          seek_type_list = potion_type_list
+        elsif script_var2 == 'herbs'
+          seek_type_list = herb_type_list
+        elsif Script.current.vars[0].downcase =~ /major|minor|missing|severed|blood/
+          Script.current.vars.delete_if { |var| var =~ /^stock$/i }
+          Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+          seek_type_list = [Script.current.vars[0]]
+        elsif script_var2 == 'combined'
+          seek_type_list = potion_type_list + herb_type_list
+        else
+          seek_type_list = potion_type_list + herb_type_list
+          both = true
+        end
+
+        if sack.survival_kit
+          everything = potion_type_list + herb_type_list
+          Actions.stock_action(everything, :drinkable) if script_var2 == 'potions' || both
+          Actions.stock_action(everything, :edible) if script_var2 == 'herbs' || both
+          Actions.stock_action(seek_type_list) if script_var2 == 'combined'
+          if script_var2 !~ /herbs|potions|combined/ && !both
+            Actions.stock_action(seek_type_list, :drinkable)
+            Actions.stock_action(seek_type_list, :edible)
+          end
+        else
+          Actions.stock_action(seek_type_list)
+        end
+
+        while (item = EO::Herbs::Sack.herb_in_hand)
+          Utility.store_herb(item)
+        end
+        Actions.deposit
+        Utility.go2(EHerbs.data[:start_room].id.to_s)
+      end
+
+      _respond
+      _respond Msg.monsterbold(' You are fully stocked with herbs at this location.')
+      _respond
+      exit
+    end
+
+    def self.stock_action(seek_type_list, form = nil)
+      Actions.shopping_list(seek_type_list, form)
+      return false if EHerbs.data[:shopping_list].empty?
+      Actions.stock_requested_herbs(form)
+      true
+    end
+
+    def self.stock_requested_herbs(form = nil)
+      Msg.print_shopping_list(form&.to_s)
+      sleep 2
+      total = EO::Herbs::Shop.cost(EHerbs.data[:shopping_list], Actions.check_prices)
+      Actions.withdraw_note(total)
+      Utility.go2('herbalist')
+      EO::Herbs::Shop.buy_list(EHerbs.data[:shopping_list], sack: sack, menu: Actions.menu, location: Room.current.location,
+                               form: form, note: EHerbs.data[:note],
+                               more_silver: -> { Actions.withdraw; Utility.go2('herbalist') })
+      Actions.deposit_note
+      fill_hands
+    rescue EO::Guild::Error => e
+      _respond Msg.monsterbold(" #{e.message}")
+      _respond Msg.monsterbold(' Please report this to EO')
+      exit
+    rescue EO::Herbs::Sack::Full
+      Utility.sack_full
+    end
+  end
+
+  module Msg
+    def self.boldif(condition, text)
+      return Msg.format_monsterbold_noescape(text) if condition
+
+      text
+    end
+
+    def self.check_herbs_in_container
+      Script.current.vars.delete_if { |var| var =~ /^check$|^settings$/i }
+      Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+      if EHerbs.data[:preposition].nil? && Script.current.vars.any? { |v| v =~ /^(in|on|behind|under)$/ }
+        EHerbs.data[:preposition] = Regexp.last_match(1).downcase
+        Script.current.vars.delete_at(1)
+        Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+      end
+
+      EHerbs.data[:preposition] ||= 'in'
+
+      container = Script.current.vars[0]
+      container = EHerbs.data[:herb_container] if container.nil? && !EHerbs.data[:herb_container].to_s.empty?
+      sack = container == EHerbs.data[:herb_container] ? EHerbs.sack : EHerbs.use_named_sack(container)
+      contents = sack.contents
+
+      if contents.nil? || contents[:all].empty?
+        _respond Msg.monsterbold(" Nothing found #{EHerbs.data[:preposition]} the #{container}")
+        exit
+      end
+
+      if container == EHerbs.data[:herb_container]
+        need_bundle = false
+        contents[:all].each do |herb|
+          next unless herb.type =~ /herb/
+          need_bundle = true unless EO::Herbs::Doses.known?(herb.id)
+          $eherbs_measure = {} unless EO::Herbs::Doses.known?(herb.id)
+        end
+        Actions.bundle_all if need_bundle
+      end
+
+      herb_types = ['poison', 'disease', 'blood', 'minor head wound', 'major head wound', 'minor head scar', 'major head scar', 'minor nerve wound', 'major nerve wound', 'minor nerve scar', 'major nerve scar', 'minor organ wound', 'major organ wound', 'minor organ scar', 'major organ scar', 'missing eye', 'minor limb wound', 'major limb wound', 'minor limb scar', 'major limb scar', 'severed limb']
+      EHerbs.known_herbs.each { |h| herb_types << h[:type] unless herb_types.include?(h[:type]) }
+      if EHerbs.data[:split_blood]
+        herb_types = herb_types.flat_map { |t| t == 'blood' ? ['minor blood', 'major blood'] : [t] }
+      end
+
+      Actions.shopping_list(herb_types) if container == EHerbs.data[:herb_container]
+
+      check_list = {}
+      herb_types.each { |t| check_list[t] = {} }
+      max_name_length = 0
+
+      # Check for Terminal-table
+      have_terminal_table = Utility.check_terminal_table
+
+      contents[:all].each do |obj|
+        matching_herb = EHerbs.known_herbs.find { |herb| (herb[:name] =~ /#{obj.name}/) }
+        next unless matching_herb
+
+        max_name_length = [max_name_length, matching_herb[:name].length].max
+
+        t = EHerbs.blood_bucket(matching_herb)
+        check_list[t] ||= {}
+        check_list[t][:first] ||= obj
+
+        check_list[t][:amount] = if container == EHerbs.data[:herb_container]
+                                   check_list[t][:amount].to_i + $eherbs_measure[obj.id.to_s].to_i
+                                 else
+                                   check_list[t][:amount].to_i + 1
+                                 end
+      end
+
+      table_rows = []
+      table_title = "Herbs found #{EHerbs.data[:preposition]} #{EHerbs.data[:herb_sack].name}"
+      if have_terminal_table
+        check_list.each do |type, values|
+          table_rows.push([type, (values[:amount].nil? ? '' : (values[:amount] > 9 ? values[:amount] : " #{values[:amount]}")), values[:first].name])
+        end
+
+        table = Terminal::Table.new
+        table.title = table_title
+        table.rows = table_rows
+        table.align_column(1, :center)
+        table.headings = ['Type', '#', "Herb"]
+
+        table = table.to_s
+      else
+        # format and output
+        max_type_length = herb_types.max_by { |i| i.length || 1 }.length + 2
+        total_length = max_type_length + 4 + max_name_length
+        max_type_length = total_length >= table_title.length ? max_type_length : max_type_length + (table_title.length - total_length)
+
+        title_format = " | %-#{max_type_length + max_name_length + 7}s |"
+        table_format = " | %-#{max_type_length - 2}s | %3s | %-#{max_name_length}s |"
+        table_line   = " +#{'-' * max_type_length}+#{'-' * 5}+#{'-' * (max_name_length + 2)}+"
+
+        table_rows << %(<output class="mono" />) unless $frontend =~ /^(?:wizard)$/i
+
+        table_rows << table_line
+        table_rows << format(title_format, table_title)
+        table_rows << table_line
+        table_rows << format(table_format, 'Type', '# ', 'Herb')
+        table_rows << table_line
+        check_list.each do |type, values|
+          table_rows << format(table_format, type, (values[:amount].nil? ? '' : values[:amount]), (values[:first].nil? ? ('' * max_name_length) : values[:first].name))
+        end
+        table_rows << table_line
+
+        table_rows << %(<output class="" />) unless $frontend =~ /^(?:wizard)$/i
+
+        table = table_rows.join("\n").to_s
+      end
+
+      table.gsub!(EHerbs.data[:herb_sack].name, Msg.item_link(EHerbs.data[:herb_sack]))
+      check_list.each do |type, values|
+        table.gsub!(values[:first].name, Msg.item_link(values[:first])) unless values[:first].nil?
+        status_key = ['minor blood', 'major blood'].include?(type) ? 'blood' : type
+        table.gsub!(type, Msg.boldif(Utility.status_check[status_key], type))
+      end
+
+      _respond
+      if $frontend =~ /^(?:stormfront|wrayth|genie)$/i
+        _respond "<output class=\"mono\"/>\n" + table.to_s + "\n<output class=\"\"/>"
+      else
+        _respond table.to_s.split("\n")
+      end
+      _respond
+
+      exit
+    end
+
+    def self.debug_msg(msg)
+      return unless EHerbs.data[:debug]
+      echo msg
+    end
+
+    def self.format_monsterbold(msg)
+      monsterbold_start + msg.encode(xml: :text) + monsterbold_end
+    end
+
+    def self.format_monsterbold_noescape(msg)
+      monsterbold_start + msg + monsterbold_end
+    end
+
+    def self.item_link(obj)
+      return obj.name if $frontend =~ /wizard|profanity/
+
+      "<a exist=\"#{obj.id}\" noun=\"#{obj.noun}\">#{obj.name}</a>"
+    end
+
+    def self.monsterbold(msg)
+      return Lich::Messaging.monsterbold(msg) if defined?(Lich::Messaging)
+
+      Msg.format_monsterbold(msg)
+    end
+
+    def self.print_help
+      respond
+      respond ' To see script settings:'
+      respond "   #{$clean_lich_char}#{Script.current.name} settings"
+      respond
+      respond ' To toggle debug on/off:'
+      respond "   #{$clean_lich_char}#{Script.current.name} debug"
+      respond
+      respond ' To use the herbs in your herbsack (see below for setting your herbsack):'
+      respond "   #{$clean_lich_char}#{Script.current.name}"
+      respond
+      respond ' To heal only hitpoints but no other wounds (squares rejoice!):'
+      respond "   #{$clean_lich_char}#{Script.current.name} blood"
+      respond
+      respond ' To check a container and report a table of herb types with counts:'
+      respond "   #{$clean_lich_char}#{Script.current.name} check <in|on|under|behind> <container>"
+      respond
+      respond ' To replace any missing herbs:'
+      respond "   #{$clean_lich_char}#{Script.current.name} fill"
+      respond
+      respond ' To stock herbs for a big hunt (purchase multiple doses of herbs):'
+      respond "   #{$clean_lich_char}#{Script.current.name} stock"
+      respond
+      respond ' To set the amount of herbs to stock based on percent of capacity:'
+      respond '   Primarily intended for survival kits but will work for ordinary containers also.'
+      respond "   #{$clean_lich_char}#{Script.current.name} set stock <percent>"
+      respond
+      respond ' Optionally you can specify if you only want herbs or potions:'
+      respond "   #{$clean_lich_char}#{Script.current.name} stock [herbs|potions]"
+      respond
+      respond ' Or you can specify if you want the stock count combined between potions and herbs. (survival kits only)'
+      respond "   #{$clean_lich_char}#{Script.current.name} stock combined"
+      respond
+      respond ' Additionally, you can specify if you only want a particular herb stocked:'
+      respond "   #{$clean_lich_char}#{Script.current.name} stock major head wound <- to stock stem only"
+      respond
+      respond ' To look up what herbs heal what (highlights herbs needed for current wounds):'
+      respond "   #{$clean_lich_char}#{Script.current.name} list"
+      respond
+      respond ' To use the herbs on a bench or something:'
+      respond "   #{$clean_lich_char}#{Script.current.name} on bench"
+      respond '     or'
+      respond "   #{$clean_lich_char}#{Script.current.name} behind altar"
+      respond
+      respond ' To use the herbs on a bench without picking up the edible herbs:'
+      respond "   #{$clean_lich_char}#{Script.current.name} on bench --no-get"
+      respond
+      respond " To heal your Adventurer's Guild escort (not well tested):"
+      respond "   #{$clean_lich_char}#{Script.current.name} escort"
+      respond
+      respond ' To heal bleeding wounds from a dead body:'
+      respond "   #{$clean_lich_char}#{Script.current.name} <character name> to heal just the bleeding wounds"
+      respond "   #{$clean_lich_char}#{Script.current.name} <character name full> to completely heal. Causes significant RT!"
+      respond
+      respond ' Options (add these to the end of the command; these override default options):'
+      respond '   --buy=<on/off>         Go to the herbalist to buy herbs if needed'
+      respond '   --deposit=<on/off>     Deposit silver if needed at end of healing'
+      respond '   --mending=<on/off>     Use sigil of mending before using herbs'
+      respond '   --skipscars=<on/off>   Skip rank 1 scar healing'
+      respond '   --yaba=<on/off>        Use yabathilium fruit first'
+      respond '   --splitblood=<on/off>  Count/stock major blood separately from acantha'
+      respond '   --potions=<on/off>     Try to use potions first'
+      respond '   --650=<on/off>         Cast Assume Aspect (650) Yierka' if Spell[650].known?
+      respond '   --1035=<on/off>        Cast Song of Tonis (1035)' if Spell[1035].known?
+      respond '   --spellcast            Attempt to only heal wounds that would prevent spellcasting'
+      respond '   --ranged               Attempt to only heal wounds that would prevent ranged combat usage'
+      respond
+      respond " Change default options (so you don't have to specify the option every time):"
+      respond "   #{$clean_lich_char}#{Script.current.name} set buy <on/off>           same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set deposit <on/off>       same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set mending <on/off>       same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set skipscars <on/off>     same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set yaba <on/off>          same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set splitblood <on/off>    same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set potions <on/off>       same as above"
+      respond "   #{$clean_lich_char}#{Script.current.name} set 650 <on/off>           same as above" if Spell[650].known?
+      respond "   #{$clean_lich_char}#{Script.current.name} set 1035 <on/off>          same as above" if Spell[1035].known?
+      respond "   #{$clean_lich_char}#{Script.current.name} set herbsack <container>   sets which container you use if one isn't"
+      respond '                                        specified on the command line'
+      respond
+      respond ' To access UI:'
+      respond "   #{$clean_lich_char}#{Script.current.name} setup"
+      respond
+    end
+
+    def self.print_herb_list(vars = nil)
+      known_herbs = EHerbs.known_herbs.dup
+      if (vars =~ /major|severed|missing/i) && (vars !~ /minor/i)
+        known_herbs.delete_if { |herb| herb[:type] !~ /major|severed|missing/i }
+      elsif (vars =~ /minor/i) && (vars !~ /major|severed|missing/i)
+        known_herbs.delete_if { |herb| herb[:type] !~ /minor/ }
+      end
+      if (vars =~ /wound/i) && (vars !~ /scar|missing|severed/i)
+        known_herbs.delete_if { |herb| herb[:type] !~ /wound/ }
+      elsif (vars =~ /scar|missing|severed/i) && (vars !~ /wound/i)
+        known_herbs.delete_if { |herb| herb[:type] !~ /scar|missing|severed/ }
+      end
+      if Script.current.vars[0] =~ /head|neck|organ|limb|leg|arm|hand|nerve|eye|blood|health|poison|posion|disease/
+        known_herbs.delete_if { |herb| herb[:type] =~ /head/ } unless vars =~ /head|neck/
+        known_herbs.delete_if { |herb| herb[:type] =~ /organ|eye/ } unless vars =~ /organ|eye/
+        known_herbs.delete_if { |herb| herb[:type] =~ /limb/ } unless vars =~ /limb|leg|arm|hand/
+        known_herbs.delete_if { |herb| herb[:type] =~ /nerve/ } unless vars =~ /nerve/
+        known_herbs.delete_if { |herb| herb[:type] =~ /blood/ } unless vars =~ /blood|health/
+        known_herbs.delete_if { |herb| herb[:type] =~ /poison/ } unless vars =~ /poison|posion/
+        known_herbs.delete_if { |herb| herb[:type] =~ /disease/ } unless vars =~ /disease/
+      end
+      list = {}
+
+      known_herbs.each do |herb|
+        key = EHerbs.blood_bucket(herb)
+        list[key] ||= []
+        list[key].push(herb[:name]) unless list[key].include?(herb[:name])
+      end
+
+      current_wounds = Utility.status_check
+      has_any_wounds = current_wounds.values.any?
+
+      output = "\n"
+
+      if has_any_wounds
+        output.concat "  Highlighted entries indicate herbs needed for your current wounds.\n\n"
+      end
+
+      list.each do |type, herbs|
+        wound_key = ['minor blood', 'major blood'].include?(type) ? 'blood' : type
+        herb_text = if current_wounds[wound_key] && defined?(Lich::Messaging)
+                      Lich::Messaging.msg_format("info", herbs.join(', '))
+                    else
+                      herbs.join(', ')
+                    end
+        output.concat monsterbold_start + "#{Msg.title_case(type)}:" + monsterbold_end + " #{herb_text}\n"
+      end
+      output.concat "\n"
+      if defined?(_respond)
+        _respond output
+      else
+        puts output
+      end
+    end
+
+    def self.print_shopping_list(type = nil)
+      max_category = EHerbs.data[:shopping_list].map { |req| req[:category].size }.max
+      max_name = EHerbs.data[:shopping_list].map { |req| req[:herb_name].size }.max
+      max_size = EHerbs.data[:shopping_list].map { |req| req[:needed].size }.max
+      max_length = max_category + max_name + max_size + 5
+
+      herb_types = ['poison', 'disease', 'blood', 'minor blood', 'major blood', 'minor head wound', 'major head wound', 'minor head scar', 'major head scar', 'minor nerve wound', 'major nerve wound', 'minor nerve scar', 'major nerve scar', 'minor organ wound', 'major organ wound', 'minor organ scar', 'major organ scar', 'missing eye', 'minor limb wound', 'major limb wound', 'minor limb scar', 'major limb scar', 'severed limb', 'lifekeep', 'raisedead']
+
+      # Check for Terminal-table
+      have_terminal_table = Utility.check_terminal_table
+      table_rows = []
+
+      list_type = type.nil? ? ' Shopping List' : " Shopping List: #{type}"
+      EHerbs.data[:shopping_list].each do |thing|
+        if thing[:herb_name] == 'any'
+          table_rows.push([thing[:category], "any #{thing[:category]}", thing[:needed]])
+        else
+          table_rows.push([thing[:category], thing[:herb_name], " #{thing[:needed]}"])
+        end
+      end
+      table_rows = table_rows.sort_by { |item| herb_types.index(item[0]) }
+
+      if have_terminal_table
+        table = Terminal::Table.new
+        table.title = list_type
+        table.rows = table_rows
+        table.align_column(2, :right)
+        table.headings = ['Category', 'Herb', ' #']
+
+        output = $frontend =~ /^(?:stormfront|wrayth|genie)$/i ? "<output class=\"mono\"/>\n" + table.to_s + "\n<output class=\"\"/>" : table.to_s.split("\n")
+      else
+        items = []
+        table_format = " | %-#{max_category + 1}s | %-#{max_name}s | %3s  |"
+        table_line   = " +#{'-' * (max_length - 3)}+#{'-' * 6}+"
+
+        items << %(<output class="mono" />) unless $frontend =~ /^(?:wizard)$/i
+
+        items << table_line
+        items << format(" | %-#{max_length + 2}s |", list_type)
+        items << table_line
+        items << format(table_format, 'Category', 'Herb Name', '#')
+        items << table_line
+        table_rows.each do |table_category, table_type, table_values|
+          items << format(table_format, table_category, table_type, table_values)
+        end
+        items << table_line
+
+        items << %(<output class="" />) unless $frontend =~ /^(?:wizard)$/i
+
+        output = items.join("\n")
+      end
+
+      _respond
+      _respond output
+      _respond
+    end
+
+    def self.title_case(title, minor_words = '')
+      minor_words_as_array = %w[a an the and but or for nor on at to from by of].concat(minor_words.split(','))
+      title_as_array = title.split(' ')
+      title_as_array.map { |word| minor_words_as_array.include?(word) ? word : word.capitalize }.join(' ')
+    end
+  end
+
+  module Utility
+    def self.able_to_cast = EO::Herbs::Injuries.can_cast?
+
+    def self.assert_herbsack_var
+      return unless EHerbs.data[:herb_container].to_s.empty?
+      respond ' No container was given and herbsack is not set!'
+      respond "  use  #{$clean_lich_char}#{Script.current.name} set herbsack <container name>"
+      exit
+    end
+
+    def self.check_cutthroat
+      return unless cutthroat?
+
+      _respond Msg.monsterbold(' You have cutthroat and cannot speak without spewing blood everywhere.')
+
+      if EHerbs.data[:heal_cutthroat] && EHerbs.data[:use_npchealer]
+        Utility.go2('npchealer')
+        fput 'lie'
+        _respond Msg.monsterbold(' This may take a minute!')
+        sleep 5 while cutthroat?
+      elsif EHerbs.data[:heal_cutthroat] && !EHerbs.data[:use_npchealer]
+        Utility.go2('town')
+        sleep 1
+        fput 'act gasps while trying to hold the blood back from the throat gash'
+        sleep 1
+        fput 'say Help me?'
+        _respond Msg.monsterbold(' While we\'re waiting on a healer - exiting. . .')
+        Script.self.kill
+      else
+        _respond Msg.monsterbold('Your cut throat requires attention! Exiting. . . ')
+        _respond Msg.monsterbold('Waiting on a healer. . . ')
+        Script.self.kill
+      end
+      _respond
+    end
+
+    def self.check_silver = Lich::Gemstone::Currency.silver(refresh: true).to_i
+
+    def self.f2p? = Lich::Gemstone::Bank.f2p?
+
+    def self.check_terminal_table
+      begin
+        require 'terminal-table' unless defined?(Terminal::Table)
+        return true
+      rescue LoadError
+        return false
+      end
+    end
+
+    # A Survivalist's Kit has its own doses and may distil; the stock
+    # targets scale to the kit's capacity, or the defaults, by the percent set.
+    def self.determine_survival_kit(sack)
+      sack = EHerbs.sack unless sack.is_a?(EO::Herbs::Sack)
+      sack.analyze!
+      EHerbs.data[:survival_kit] = sack.survival_kit
+      EHerbs.survival_kit = sack.survival_kit
+      EHerbs.data[:distiller] = true if sack.distiller
+      EHerbs.data[:distiller] = false unless sack.survival_kit
+      return unless EHerbs.data[:stock].to_i > 0
+      EHerbs.data[:stock] = [EHerbs.data[:stock].to_s.gsub('%', '').to_f, 100].min
+      targets = sack.stock_targets(EHerbs.data[:stock])
+      EHerbs.data[:min_stock_doses].merge!(targets)
+      EHerbs.min_stock_doses.merge!(targets)
+    end
+
+    def self.distill
+      return unless EHerbs.data[:distiller]
+      EHerbs.sack.distill
+    end
+
+    def self.find_herbsack = EHerbs.sack.obj
+
+    def self.go2(place)
+      fput('unhide') if hidden? || invisible?
+
+      return if Room.current.id.to_s == place.to_s || Room.current.tags.include?(place)
+
+      Utility.mapped_room
+
+      Script.run('go2', "#{place} --disable-confirm", { quiet: true })
+    end
+
+    def self.mapped_room
+      return unless Room.current.nil?
+
+      move checkpaths.sample while Room.current.id.nil?
+    end
+
+    def self.next_herb_type
+      EO::Herbs::Injuries.next_type(skip: EHerbs.data[:skippable], skip_scars: EHerbs.data[:skip_scars],
+                                    spellcast_only: EHerbs.data[:spellcast_only], ranged_only: EHerbs.data[:ranged_only])
+    end
+
+    def self.read_menu = Actions.menu
+
+    def self.settings_herbsack(vars)
+      return unless vars[2] == 'herbsack'
+
+      old_herbsack = EHerbs.data[:herb_container]
+      if vars[3]
+        name = vars[3..-1].join(' ')
+        obj_list = GameObj.inv.find_all { |obj| obj.noun == name }
+        obj_list = GameObj.inv.find_all { |obj| obj.name == name } if obj_list.empty?
+        obj_list = GameObj.inv.find_all { |obj| obj.name =~ /\b#{Regexp.escape(name)}$/i } if obj_list.empty?
+        obj_list = GameObj.inv.find_all { |obj| obj.name =~ /\b#{name.split(' ').collect { |n| Regexp.escape(n) }.join(".*\\b")}/i } if obj_list.empty?
+
+        if obj_list.empty?
+          echo "error: failed to find a container in your inventory by the name of \"#{name}\""
+        elsif obj_list.length > 1
+          echo "error: multiple containers in your inventory match the name \"#{name}\""
+        else
+          UserVars.herbsack = name
+          _respond "#{Script.current.name} setting saved: herbsack is now #{Msg.monsterbold(name)}.#{old_herbsack.nil? ? '' : " (previous value: '#{old_herbsack}')"}"
+        end
+      else
+        echo 'error: no container name given'
+      end
+    end
+
+    def self.set_preferences(var_name, var_value, save: false)
+      fix_option = { 'on' => true, 'true' => true, 'yes' => true, 'off' => false, 'false' => false, 'no' => false }
+
+      name = EHerbs.data[:var_names][var_name.downcase]
+      value = fix_option[var_value.downcase]
+      echo "unknown setting #{var_name}" if name.nil?
+      echo "unknown value #{var_value} for #{var_name}" if value.nil?
+      return false if name.nil? || value.nil?
+
+      EHerbs.data[name.to_sym] = value
+      return if save == false
+
+      old_value = CharSettings[name]
+      return unless value.inspect != old_value.inspect
+
+      CharSettings[name] = value
+      _respond "#{Script.current.name} setting saved: #{Msg.monsterbold(var_name)} is now #{Msg.monsterbold(value.inspect)}. #{old_value.nil? ? '' : " (previous value: #{old_value})"}"
+    end
+
+    # Only relevant to stocking, so this is called from stock_herbs rather than at
+    # startup -- plenty of people use eherbs without ever stocking.
+    def self.warn_unset_stock_percent
+      return unless EHerbs.data[:survival_kit]
+      return if EHerbs.data[:stock].to_i > 0
+
+      set_cmd = "#{$clean_lich_char}#{Script.current.name} set stock"
+      _respond
+      Lich::Messaging.msg('warn', 'You have a Survivalist\'s Kit but no "Stock to % of Capacity" set.')
+      Lich::Messaging.msg('warn', 'Dose targets stay at their herb sack defaults, which a kit already exceeds,')
+      Lich::Messaging.msg('warn', 'so stocking will report you are fully stocked and buy nothing.')
+      _respond '   ' + Lich::Messaging.make_cmd_link("#{set_cmd} 100", "#{set_cmd} 100") + " to fill the kit to capacity, or #{set_cmd} <percent>."
+      _respond
+    end
+
+    def self.settings_stock(amount)
+      amount = amount.gsub('%', '').to_i
+
+      if amount != CharSettings['stock'].to_i
+        value = CharSettings['stock'].to_s.empty? ? 'default' : CharSettings['stock'].to_i
+        _respond " #{Script.current.name} setting saved: #{Msg.monsterbold("You will now stock at #{amount}% of capacity")} (previous value: #{value})"
+        CharSettings['stock'] = amount
+      else
+        _respond " #{Script.current.name} setting not saved: The new value (#{amount}) is the same as the old one."
+      end
+    end
+
+    def self.status_check = EO::Herbs::Injuries.status
+
+    # The sack is full: put the hands away, finish the errands, stop.
+    def self.sack_full
+      _respond Msg.monsterbold("The #{EHerbs.data[:herb_sack].noun} is full. Exiting...")
+      fput 'stow right' if checkright
+      fput 'stow left' if checkleft
+      Actions.deposit if EHerbs.data[:need_deposit]
+      Utility.go2(EHerbs.data[:start_room].id.to_s) if EHerbs.data[:need_return]
+      Utility.distill if EHerbs.data[:distiller]
+      exit
+    end
+
+    def self.store_herb(item)
+      EHerbs.sack.store(item)
+    rescue EO::Herbs::Sack::Full
+      Utility.sack_full
+    end
+
+    def self.wait_rt = EO.settle
+  end
+
+  # start of user input processing
+  #------------------------------------------------------------------------------#
+  # help / print / preferences
+  #------------------------------------------------------------------------------#
+
+  EHerbs.exec_str
+  EHerbs.load(EHerbs.load_eherbs_settings)
+
+  if Script.current.vars[0] =~ /^-?-?help/i
+    Msg.print_help
+    exit
+  elsif Script.current.vars[1] =~ /debug/
+    current_setting = CharSettings['debug'].nil? ? false : CharSettings['debug']
+    _respond Msg.monsterbold("Debug settings changed from #{current_setting} to #{!current_setting}")
+    CharSettings['debug'] = !CharSettings['debug']
+    exit
+  elsif Script.current.vars[1] =~ /^list$/i
+    Msg.print_herb_list(Script.current.vars[0])
+    exit
+  elsif Script.current.vars[1] =~ /^settings$/i
+    Setup.new(EHerbs.load_eherbs_settings).list
+    exit
+  elsif Script.current.vars[1] == 'setup'
+    if Setup.available?
+      old_settings = EHerbs.data
+      redetect_survival_kit = false
+      Setup.new(EHerbs.load_eherbs_settings).start
+      EHerbs.save_eherbs_settings(EHerbs.data)
+      [:herb_sack, :stock, :distiller].each do |key|
+        if old_settings[key] != EHerbs.data[key]
+          redetect_survival_kit = true
+          break
+        end
+      end
+      Utility.determine_survival_kit(Utility.find_herbsack) if redetect_survival_kit && !old_settings[:survival_kit].nil?
+    else
+      respond ' EHerbs setup needs the Lich WebUI. Please use the command line (;eherbs help).'
+    end
+    exit
+  elsif Script.current.vars[1].downcase == 'set' && Script.current.vars[2].downcase == 'herbsack'
+    Utility.settings_herbsack(Script.current.vars)
+    exit
+  elsif Script.current.vars[1].downcase == 'set' && EHerbs.data[:var_names].keys.include?(Script.current.vars[2].downcase)
+    Utility.set_preferences(Script.current.vars[2], Script.current.vars[3], save: true)
+    exit
+  elsif Script.current.vars[1].downcase == 'set' && Script.current.vars[2].downcase == 'stock'
+    Utility.settings_stock(Script.current.vars[3])
+    exit
+  elsif Script.current.vars[1] =~ /^(#{EHerbs.data[:var_names].keys.join('|')})=(on|off|true|false|yes|no)$/i
+    Utility.set_preferences(Regexp.last_match(1), Regexp.last_match(2), save: false)
+    Script.current.vars.delete_at(1)
+    exit
+  elsif Script.current.vars[0] =~ /load/
+    EHerbs.load(EHerbs.load_eherbs_settings)
+    Utility.determine_survival_kit(Utility.find_herbsack)
+    exit
+  end
+
+  #------------------------------------------------------------------------------#
+  # more preferences, and no_get
+  #------------------------------------------------------------------------------#
+  Script.current.vars[1..-1].each do |v|
+    if v =~ /^--(#{EHerbs.data[:var_names].keys.join('|')})=(on|off|true|false|yes|no)$/i
+      Utility.set_preferences(Regexp.last_match(1), Regexp.last_match(2), save: false)
+      Script.current.vars.delete_if { |var| var == "--#{Regexp.last_match(1)}=#{Regexp.last_match(2)}" }
+    end
+  end
+  Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+  if Script.current.vars.any? { |var| var =~ /^(?:--)?no-?get$/i }
+    EHerbs.data[:no_get] = true
+    Script.current.vars.delete_if { |var| var =~ /^(?:--)?no-?get$/i }
+    Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+  else
+    EHerbs.data[:no_get] = false
+  end
+  if Script.current.vars.any? { |var| var =~ /^(?:--)?spellcast$/i }
+    EHerbs.data[:spellcast_only] = true
+    Script.current.vars.delete_if { |var| var =~ /^(?:--)?spellcast$/i }
+    Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+  else
+    EHerbs.data[:spellcast_only] = false
+  end
+  if Script.current.vars.any? { |var| var =~ /^(?:--)?ranged$/i }
+    EHerbs.data[:ranged_only] = true
+    Script.current.vars.delete_if { |var| var =~ /^(?:--)?ranged$/i }
+    Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+  else
+    EHerbs.data[:ranged_only] = false
+  end
+  if Script.current.vars.any? { |var| var =~ /^blood$/i } || EHerbs.data[:blood_toggle] # and not Script.current.vars.any? { |var| var =~ /^stock blood/ }
+    EHerbs.data[:blood_only] = true
+    Script.current.vars.delete_if { |var| var =~ /^blood$/i }
+    Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+  end
+  case Script.current.vars[1].downcase
+  when 'escort'
+    Actions.escort
+  when 'fill'
+    Actions.fill_herbs
+  when 'stock'
+    Actions.stock_herbs
+  when 'check'
+    Msg.check_herbs_in_container
+  else
+    if Script.current.vars[1]
+      character = GameObj.pcs.find { |pc| pc.name =~ /#{Script.current.vars[1]}/i }
+      unless character.nil?
+        Actions.deader(character)
+        exit
+      end
+    end
+  end
+
+  # refresh XML display of wounds/scars incase missing an injury
+  EO.command('_injury 2', /<dialogData id='injuries'/, silent: true, quiet: true)
+  sleep(0.5)
+
+  # if this condition changes, make sure to update EBounty.check_health accordingly
+  unless EO::Herbs::Injuries.hurt?
+    Utility.distill if EHerbs.data[:distiller]
+    respond
+    respond ' Missing herb for Hypochondriasis.'
+    respond
+    exit
+  end
+
+  #------------------------------------------------------------------------------#
+  # ???
+  #------------------------------------------------------------------------------#
+  if Script.current.vars[1]
+    EHerbs.data[:return_to_stow] = true
+    if Script.current.vars[1] =~ /^(in|on|behind|under)$/i
+      EHerbs.data[:preposition] = Regexp.last_match(1).downcase
+      Script.current.vars.delete_at(1)
+      Script.current.vars[0] = Script.current.vars[1..-1].join(' ')
+    end
+    if Script.current.vars[1] =~ /^\#-?[0-9]+$/
+      # This is for setting a herb sack from CLI
+      EHerbs.use_sack(EO::Herbs::Sack.new(GameObj.new(Script.current.vars[1].sub('#', ''), '', ''), preposition: EHerbs.data[:preposition]))
+    elsif Script.current.vars[1]
+      EHerbs.use_named_sack(Script.current.vars[0])
+    elsif EHerbs.data[:herb_container].to_s.empty?
+      respond ' error: no herbsack set or specified on the command line'
+      exit
+    else
+      EHerbs.sack
+    end
+  else
+    if EHerbs.data[:herb_container].to_s.empty?
+      respond ' No container was given and herbsack is not set!'
+      respond "  use  #{$clean_lich_char}#{Script.current.name} set herbsack <container name>"
+      respond "  or   #{$clean_lich_char}#{Script.current.name} <in|on|behind|under> <container name>"
+      exit
+    end
+  end
+
+  #------------------------------------------------------------------------------#
+  # use herbs
+  #------------------------------------------------------------------------------#
+  empty_hand
+  Script.pause('ego2') if Script.running?('ego2') # pause to avoid loss of escort
+
+  Actions.use_herbs
+
+  #------------------------------------------------------------------------------#
+  # cleanup
+  #------------------------------------------------------------------------------#
+  EHerbs.stow_used
+  fill_hand
+  EHerbs.sack.close if EHerbs.sack.close_after
+  Actions.deposit if EHerbs.data[:need_deposit]
+  Utility.go2(EHerbs.data[:start_room].id.to_s) if EHerbs.data[:need_return]
+  Utility.distill if EHerbs.data[:distiller]
+  Script.unpause('ego2') if Script.paused?('ego2')
+end

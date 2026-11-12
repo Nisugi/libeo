@@ -1,0 +1,1565 @@
+=begin
+
+  ewaggle.lic:  Spellup script for yourself and others.  This script is a rewrite of ultrawaggle from SpiffyJr, which is a heavily modified version of spellup from Shaelun and Blueland.
+    ;ewaggle help
+
+        author: elanthia-online
+  contributors: Tillmen, Tysong, Deysh
+          game: gs
+          tags: magic, utility, spell
+      required: Lich >= 5.9.0
+       version: 2.3.0
+  Version Control:
+    Major_change.feature_addition.bugfix
+  2.3.0 (2026-11-12)
+    - casting, the multicast count, making mana (wracking, Sigil of Power, Symbol of Mana,
+      stamina), reading another's active spells and manna bread come from libeo (EO::Casting).
+      Needs libeo 0.2.0
+    - fix: with Sign of Wracking ready and someone watching, waiting for mana instead of
+      spinning in place
+  2.2.0 (2026-11-07)
+    - setup window rewritten from GTK to Lich's native WebUI (no GTK needed)
+    - spells move between the lists by drag and drop, double-click, or the two buttons
+    - Save & Close saves; Cancel or closing the window discards
+  2.1.7 (2026-10-21)
+    - bugfix for mana bread with custom food not being eaten or dropped
+  2.1.6 (2026-06-16)
+    - bugfix to cast 1612 first if in the cast list
+  2.1.5 (2025-11-25)
+    - add disk casting support
+  2.1.4 (2025-10-16)
+    - bugfix in logic bad target/spell
+  2.1.3 (2025-04-24)
+    - bugfix in --cast-list regex
+  2.1.2 (2025-04-23)
+    - bugfix for info['sharing']
+  2.1.1 (2025-03-03)
+    - remove additional deprecated Lich calls
+  2.1.0 (2025-03-03)
+    - added option to skip characters not sharing spell info
+  2.0.5 (2025-03-02)
+    - bugfix in cast_solid code
+  2.0.4 (2025-02-19)
+    - bugfix for CLI variable of the wrong type
+  2.0.3 (2025-02-19)
+    - bugfix --useoptions to have the use be optional for CLI usage
+  2.0.2 (2025-02-18)
+    - bugfix in check_mana returning due to unnecessary stamina_cost check
+  2.0.1 (2025-02-17)
+    - bump minimum version to 5.8 due to PSM bug in 5.7
+    - add --skip-armor flag for avoid overwriting existing
+    - bugfix for mana bread
+  2.0.0 (2025-02-06)
+    Refactor code now requires Lich 5.7.0 or better
+    converted to use yaml profiles
+    uses terminal-table for info, list, and help output
+    added support for armor buffs
+    added support for sonic gear
+    added option for self when buffing a group instead of your name. Ex ;ewaggle Bil Joe self
+    removed dont_cast_over parameter since its obsolete
+  1.0.5 (2024-12-31):
+    Bugfix in sorting of spells in cast_list and in GTK setup window
+  1.0.4 (2024-07-09):
+    Fix to Symbol of Mana to not spam if out of favor
+  1.0.3 (2024-05-01):
+    Change Char.prof to Stats.prof
+  1.0.2 (2024-02-14):
+    removal of CONSTANT to cleanup log output
+  1.0.1 (2022-04-07):
+    bugfix for reget in GTK queue
+    update default cast_list for new configs
+  1.0.0 (2022-04-07):
+    rename waggle -> ewaggle
+    Add bail mode
+
+=end
+
+Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+EO.require('0.2.0')
+=begin
+waggle.lic prior release notes
+  0.18.4 (2023-04-05):
+    Update wander proc for FalseClass error
+    Rubocop cleanup
+    Change script.vars to Script.current.vars
+  0.18.3 (2022-03-15):
+    Replaced squelching of SPELL ACTIVE using Lich::Util.quiet_command_xml
+  0.18.2 (2022-03-09):
+    Fix for Lich 5.4.0 and Effects symbol of mana
+  0.18.1 (2021-08-21):
+    Updated to account for Monk and Feat mental acuity
+  0.17.0 (2021-08-12):
+    updated with new SPELL ACTIVE format
+    updated header information for standardization
+  0.16 (2020-08-21):
+    added squelching of spell active output (using quiet_command from Lostranger scripts)
+  0.15 (2020-08-20):
+    hacked in using new SPELL ACTIVE <target> functionality
+  0.14 (2019-05-11):
+    fix --reserve-mana (austin-j)
+  0.13 (2019-03-03):
+    set refreshable_min value from CLI if present (sandersch)
+  0.12 (2018-04-20):
+    fix --refreshable-min command line option
+
+=end
+
+# fixme: option to cast high level spells first
+
+# Check version of Lich for compatibility
+lich_gem_requires = Script.list.find { |x| x.name == Script.current.name }.inspect[/required: Lich >= (\d+\.\d+\.\d+)/i, 1]
+
+if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
+  if $frontend == 'stormfront' || $frontend == 'profanity'
+    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
+    _respond ""
+    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
+    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
+  else
+    _respond "##" + "########################################"
+    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
+    _respond ">" + "Please update to a newer version."
+    _respond ">" + ""
+    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
+    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
+    _respond "##" + "########################################"
+  end
+  exit
+end
+
+require 'yaml'
+require 'terminal-table'
+
+# Data
+module Ewaggle
+  class Data
+    attr_accessor :settings, :known_spells, :did_something, :short_spell_time, :cast_list, :wander, :skip_spells, :skip_targets, :revert,
+                  :options, :cli_options, :armor_list, :original_settings
+
+    def initialize(settings)
+      @settings = settings
+      @did_something = false
+      @short_spell_time = 3
+      @cast_list = @settings[:cast_list].reject { |entry| entry =~ /armor/i && entry !~ /sonic|mage/i }.map { |entry| entry[/^\d+/].to_i }.reject(&:zero?)
+      @armor_list = @settings[:cast_list].select { |item| item =~ /Armor/i && item !~ /sonic|mage/i }
+      @wander = []
+      @skip_spells = []
+      @skip_targets = []
+      @revert = false
+      @original_settings = nil
+
+      @cli_options = {
+        /^\-\-start[_\-]at=(\d+)(?=\s--\w+|$)/                          => :start_at,
+        /^\-\-stop[_\-]at=(\d+)(?=\s--\w+|$)/                           => :stop_at,
+        /^\-\-\b(?:unstackable|refreshable)[_\-]min=(\d+)(?=\s--\w+|$)/ => :refreshable_min,
+        /^\-\-cast[_\-]list=([^\s]+)(?=\s--\w+|$)/                      => :cast_list,
+        /^\-\-(?:use[_\-])?multicast=(on|off)(?=\s--\w+|$)/             => :use_multicast,
+        /^\-\-(?:use[_\-])?wracking=(on|off)(?=\s--\w+|$)/              => :use_wracking,
+        /^\-\-wander[_\-]to[_\-]wrack=(on|off)(?=\s--\w+|$)/            => :wander_to_wrack,
+        /^\-\-(?:use[_\-])?power=(on|off)(?=\s--\w+|$)/                 => :use_power,
+        /^\-\-(?:use[_\-])?mana=(on|off)(?=\s--\w+|$)/                  => :use_mana,
+        /^\-\-(?:use[_\-])?concentration=(on|off)(?=\s--\w+|$)/         => :use_concentration,
+        /^\-\-bail=(on|off)(?=\s--\w+|$)/                               => :bail_no_mana,
+        /^\-\-skip[_\-]short(?:[_\-]spells)?=(on|off)(?=\s--\w+|$)/     => :skip_short_spell,
+        /^\-\-retribution[_\-]spell=(on|off|none)(?=\s--\w+|$)/         => :retribution_spell,
+        /^\-\-reserve[_\-]mana=(\d+)(?=\s--\w+|$)/                      => :reserve_mana,
+        /^\-\-(?:use[_\-])?203=(on|off)(?=\s--\w+|$)/                   => :use_203,
+        /^\-\-(?:use[_\-])?515=(on|off)(?=\s--\w+|$)/                   => :use_515,
+        /^\-\-skip[_\-]not[_\-]sharing=(on|off)(?=\s--\w+|$)/           => :skip_not_sharing,
+        /^\-\-skip[_\-]armor(?=\s--\w+|$)/                              => :skip_armor,
+        /^\-\-save$/                                                    => :save
+      }
+
+      @options = {
+        /add\b/i                                   => :cast_list,
+        /^rem(?:ove)?\b|^del(?:ete)?\b/i           => :cast_list,
+        /^start[_\-]at\b/i                         => :start_at,
+        /^stop[_\-]at\b/i                          => :stop_at,
+        /^(?:unstackable|refreshable)[_\-]?min\b/i => :unstackable_min,
+        /^(?:use[_\-])?multicast\b/i               => :use_multicast,
+        /^(?:use[_\-])?wracking\b/i                => :use_wracking,
+        /^bail\b/i                                 => :bail_no_mana,
+        /^wander(?:[_\-]to[_\-]wrack)?\b/i         => :wander_to_wrack,
+        /^(?:use[_\-])?power\b/i                   => :use_power,
+        /^(?:use[_\-])?concentration\b/i           => :use_concentration,
+        /^(?:use[_\-])?mana\b/i                    => :use_mana,
+        /^skip[_\-]short(?:[_\-]spells)\b/i        => :skip_short_spells,
+        /^reserve[_\-]mana\b/i                     => :reserve_mana,
+        /^(?:use[_\-])?203\b/i                     => :use_203,
+        /^(?:use[_\-])?515\b/i                     => :use_515,
+        /^skip[_\-]not(?:[_\-]sharing)\b/i         => :skip_not_sharing,
+        /^retribution(?:[_\-]spell)?\b/i           => :retribution_spell
+      }
+
+      valid_retribution_spells = [
+        '701', '702', '703', '705', '706', '708', '711', '713', '715', '716', '717', '718', '719', '740',
+        '102', '106', '110', '111', '118', '119', '130',
+        '409', '412', '413', '415', '417'
+      ]
+
+      if !valid_retribution_spells.include?(@settings[:retribution_spell]) && !@settings[:retribution_spell].to_s.empty?
+        respond " #{@settings[:retribution_spell]} #{Spell[@settings[:retribution_spell]]} is not a valid retribution spell."
+        respond " Please visit https://gswiki.play.net/Cloak_of_Shadows_(712) for a complete list"
+        @settings[:retribution_spell] = ""
+      end
+    end
+  end
+end
+
+# Setup
+module Ewaggle
+  # Native WebUI setup window. Replaces the Gtk::Builder window: the layout is
+  # authored with the Lich WebUI tree builder, the two spell lists are tables
+  # that share a transfer group (drag a row across, or double-click it), and
+  # Save & Close writes the profile exactly as the GTK window's Close did;
+  # Cancel or closing the window discards. Built on Lich::WebUI::SettingsForm.
+  class Setup
+    attr_accessor :settings
+
+    # Lich keeps this class between runs in a session. Drop the old constants so an
+    # updated script never renders with the ones from the version that ran first.
+    constants(false).each { |name| remove_const(name) }
+
+    PAGE_ID = 'ewaggle-setup'
+    TRANSFER_GROUP = 'ewaggle-spells'
+    LISTS = { not_to_cast: 'Spells Not to Cast', cast_list: 'Spells to cast' }.freeze
+    SPINS = {
+      start_at: [0, 250],
+      stop_at: [0, 250],
+      refreshable_min: [0, 250],
+      armor_min: [0, 410],
+      reserve_mana: [0, 1000]
+    }.freeze
+    SONIC_ARMOR = [
+      'Robes', 'Light Leather', 'Full Leather', 'Reinforced Leather', 'Double Leather', 'Leather Breastplate',
+      'Cuirbouilli Leather', 'Studded Leather', 'Brigandine Armor', 'Chain mail', 'Double Chain', 'Augmented Chain',
+      'Chain Hauberk', 'Metal Breastplate', 'Augmented Plate', 'Half Plate', 'Full Plate'
+    ].freeze
+
+    @@categories = {
+      general: {
+        not_to_cast: { default: [] },
+        cast_list: { default: [] },
+        start_at: { default: 180 },
+        stop_at: { default: 180 },
+        refreshable_min: { default: 15 },
+        armor_min: { default: 15 },
+        use_multicast: { default: true },
+        use_wracking: { default: false },
+        wander_to_wrack: { default: false },
+        use_power: { default: false },
+        use_mana: { default: false },
+        use_concentration: { default: false },
+        skip_not_sharing: { default: false },
+        skip_short_spells: { default: false },
+        bail_no_mana: { default: false },
+        reserve_mana: { default: 0 },
+        retribution_spell: { default: "" },
+        use_203: { default: false },
+        use_515: { default: false },
+        sonic_weapon: { default: "" },
+        sonic_shield: { default: "" },
+        sonic_armor: { default: "" },
+      },
+      internal: {
+        debug: { default: false },
+      },
+    }
+
+    # True when Lich can open a WebUI window for this script.
+    def self.available?
+      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
+        defined?(Lich::WebUI::SettingsForm) ? true : false
+    end
+
+    def self.get_category(key)
+      @@categories.each { |category, data| return category unless data[key].nil? }
+      nil
+    end
+
+    def self.get_setting(key)
+      cat = Setup.get_category(key)
+      return nil if cat.nil?
+
+      @@categories[cat].each { |setting, data| return data if setting == key }
+      nil
+    end
+
+    def initialize(settings)
+      @owner = Script.current
+      @settings = settings
+      @script_name = Script.current.name.capitalize
+      @selected = { not_to_cast: nil, cast_list: nil }
+      @status = ''
+
+      # Not_to_cast list needs reset if using CLI.
+      reset_no_cast
+
+      @version = Ewaggle.get_script_version
+
+      # set default values if they don't exist
+      @@categories.each do |_key, data|
+        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
+      end
+
+      # remove settings that don't exist
+      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+
+      # disable options and set them to false if the character can't do them
+      disabled.each { |key| @settings[key] = key == :retribution_spell ? "" : false }
+    end
+
+    # Options the character cannot use. They are hidden and forced off, as the
+    # GTK window did.
+    def disabled
+      conditions = {
+        retribution_spell: !Spell[712].known?,
+        use_wracking: !(Society.membership == 'Council of Light' && Society.rank >= 18),
+        wander_to_wrack: !(Society.membership == 'Council of Light' && Society.rank >= 18),
+        use_power: !(Society.membership == 'Guardians of Sunfist' && Society.rank >= 18),
+        use_concentration: !(Society.membership == 'Guardians of Sunfist' && Society.rank >= 14),
+        use_mana: !(Society.membership == 'Order of Voln' && Society.rank >= 13),
+        use_203: !Spell[203].known?,
+        use_515: !Spell[515].known?
+      }
+      conditions.select { |_, off| off }.keys
+    end
+
+    def reset_no_cast
+      @settings[:not_to_cast] = []
+
+      # Remove spells from casting list character doesn't know
+      @settings[:cast_list].reject! do |entry|
+        number = entry[/^\d+/].to_i # Extract leading digits and convert to integer
+        if entry =~ /armor/i && entry !~ /sonic|mage/i
+          !Armor.known?(entry.gsub(/^\d+\s*/, ''))
+        else
+          !Spell[number].known?
+        end
+      end
+
+      gtk_spells = []
+      Spell.list.each { |spell| gtk_spells.push(spell) if (spell.known? && spell.time_per > 0 && spell.num.to_s =~ /(?:[1-4][0-9]|50|0[1-9])$/) }
+      gtk_spells.push(Spell[511]) if Spell[511].known?
+      gtk_spells.sort_by!(&:num)
+
+      # Rebuild the not to cast list
+      gtk_spells.each do |spell|
+        next if @settings[:cast_list].include?("#{spell.num}  #{spell.name}")
+        @settings[:not_to_cast] << "#{spell.num}  #{spell.name}"
+      end
+
+      Ewaggle.armor_spells.each { |name, number|
+        next unless Armor.known?(name)
+        next if @settings[:cast_list].any? { |word| word =~ /armor/i }
+        @settings[:not_to_cast] << "#{number} #{name}"
+      }
+
+      @settings[:not_to_cast].uniq!
+    end
+
+    # ---------------------------------------------------------- lifecycle --
+
+    # Shows the settings form. Save & Close writes the profile; Cancel or
+    # closing the window discards (;ewaggle setup reloads the profile after).
+    def start
+      setup = self
+      values = @settings.dup
+      SPINS.each { |key, (min, max)| values[key] = values[key].to_i.clamp(min, max) }
+      values[:sonic_armor] = '' unless SONIC_ARMOR.include?(values[:sonic_armor].to_s)
+      @form = Lich::WebUI::SettingsForm.new(
+        owner: @owner, id: PAGE_ID, title: title, values: values, fields: fields,
+        props: { size: [760, 700], bare: true, density: :compact, viewport: true },
+        normalize: ->(draft) { setup.normalize(draft) },
+        layout: ->(ui, field, save) { setup.render(ui, field, save, -> { setup.cancel }) }
+      )
+      result = @form.show.wait
+      if result
+        Ewaggle.data.settings = result
+        Ewaggle.save_profile
+      else
+        respond
+        Lich::Messaging.msg('plain', " #{@script_name} UI closed WITHOUT saving any changes")
+        Lich::Messaging.msg('plain', " Use the Save & Close button to save changes")
+        respond
+      end
+      result
+    end
+
+    def cancel
+      @form&.close
+    end
+
+    def title
+      "Ewaggle Setup v#{@version}"
+    end
+
+    CHECKS = {
+      use_multicast: 'Multicast', skip_short_spells: 'Skip Short Spells on Others', bail_no_mana: 'Bail on No More Resources',
+      use_203: 'Use Mana Bread (203)', use_515: 'Use Rapid Fire (515)', use_wracking: 'Sign of Wracking',
+      wander_to_wrack: 'Wander to Wrack', use_power: 'Sigil of Power', use_concentration: 'Sigil of Concentration',
+      use_mana: 'Symbol of Mana', skip_not_sharing: 'Skip characters not sharing spell info'
+    }.freeze
+    # From ;ewaggle help.
+    CHECK_TIPS = {
+      use_multicast: 'Use multicast where a spell allows it.',
+      skip_short_spells: "Don't cast spells with a short duration on others.",
+      bail_no_mana: 'Stop casting when you run out of mana or other resources.',
+      use_203: 'Cast and eat mana bread (203) when you know it.',
+      use_515: 'Cast Rapid Fire (515) when you know it.',
+      use_wracking: 'Use Sign of Wracking when out of mana.',
+      wander_to_wrack: 'Wander up to 20 rooms to find an empty room to wrack in, then return.',
+      use_power: 'Use Sigil of Power when out of mana.',
+      use_concentration: 'Use Sigil of Concentration when out of mana.',
+      use_mana: 'Use Symbol of Mana when out of mana.',
+      skip_not_sharing: 'Skip characters who are not sharing their spell information.'
+    }.freeze
+    SPIN_TIPS = {
+      start_at: 'Stackable spells with less time remaining than this are cast.',
+      stop_at: 'Stackable spells are cast until they have this much time remaining.',
+      refreshable_min: 'Spells above this time will NOT be cast',
+      armor_min: 'Armor buffs above this time will NOT be cast',
+      reserve_mana: 'Mana to keep in reserve. Casting stops at this amount.'
+    }.freeze
+
+    # Form fields. Options the character cannot use are left out of the layout,
+    # so they keep the forced-off value set in #initialize.
+    def fields
+      checks = CHECKS.map { |key, label| { key: key, type: :checkbox, label: label, tooltip: CHECK_TIPS.fetch(key) } }
+      spins = SPINS.map do |key, (min, max)|
+        { key: key, type: :number_input, min: min, max: max, step: 1, stepper_buttons: false, digits: 0, tooltip: SPIN_TIPS.fetch(key) }
+      end
+      armor = [{ value: '', label: '(none)' }] + Lich::WebUI::SettingsForm.choice_options(SONIC_ARMOR)
+      checks + spins + [
+        { key: :sonic_weapon, type: :text_input, placeholder: 'Name of sonic weapon (follow link for options)',
+          tooltip: 'Notable exceptions: Katana, Naginata, Claidhmore, and Missile Weapons.' },
+        { key: :sonic_shield, type: :text_input, placeholder: 'Name of sonic shield (follow link for options)' },
+        { key: :sonic_armor, type: :select, options: armor },
+        { key: :retribution_spell, type: :text_input, placeholder: 'Spell #',
+          tooltip: 'Spell number to cast with Cloak of Shadows (712). See gswiki.play.net/Cloak_of_Shadows_(712).' },
+      ]
+    end
+
+    # Coerces submitted values to the types the profile has always held and
+    # takes both spell lists from this window's current state.
+    def normalize(draft)
+      CHECKS.each_key { |key| draft[key] = draft[key] ? true : false }
+      SPINS.each { |key, (min, max)| draft[key] = draft[key].to_i.clamp(min, max) }
+      %i[sonic_weapon sonic_shield retribution_spell].each { |key| draft[key] = draft[key].to_s.strip }
+      draft[:sonic_armor] = draft[:sonic_armor].to_s
+      draft[:cast_list] = @settings[:cast_list].dup
+      draft[:not_to_cast] = @settings[:not_to_cast].dup
+      draft
+    end
+
+    # Re-renders after a list move or a button press; field edits and row
+    # selection never refresh the page.
+    def act
+      yield
+    rescue StandardError => e
+      respond "#{@script_name} setup: #{e.class}: #{e.message}"
+      respond e.backtrace.first(5).join("\n") if @settings[:debug]
+    ensure
+      Lich::WebUI.refresh(@form.page) if @form&.page
+    end
+
+    def cb(&block)
+      setup = self
+      ->(ev) { setup.act { block.call(ev) } }
+    end
+
+    # ---------------------------------------------------------- spell lists --
+
+    # Row keys for every spell in either list: the spell number, plus a suffix
+    # when two entries share a number, so keys are unique across both tables.
+    def row_keys
+      used = Hash.new(0)
+      (@settings[:not_to_cast] + @settings[:cast_list]).uniq.sort_by { |text| [text[/^\d+/].to_i, text] }.to_h do |text|
+        base = "spell-#{text.to_s[/^\d+/] || 'x'}"
+        used[base] += 1
+        [text, used[base] == 1 ? base : "#{base}-#{used[base]}"]
+      end
+    end
+
+    def self.sort_spells(list)
+      list.sort_by { |text| [text[/^\d+/].to_i, text] }
+    end
+
+    def other_list(key)
+      key == :not_to_cast ? :cast_list : :not_to_cast
+    end
+
+    # Move the spell with row key +row+ into list +dest+, from whichever list
+    # holds it. A drop onto the list it already lives in is a no-op.
+    def move_spell(row, dest)
+      src = other_list(dest)
+      keys = row_keys
+      text = @settings[src].find { |entry| keys[entry] == row }
+      return unless text
+
+      @settings[src].delete(text)
+      @settings[dest] << text unless @settings[dest].include?(text)
+      @settings[dest] = Setup.sort_spells(@settings[dest])
+      @selected[src] = nil
+      @status = "#{text.strip} moved to #{LISTS[dest]}"
+    end
+
+    # Each button moves the row selected in its own source list.
+    def move_selected(dest)
+      row = @selected[other_list(dest)]
+      return @status = "Select a spell in #{LISTS[other_list(dest)]} first" unless row
+
+      move_spell(row, dest)
+    end
+
+    # Remembers the row selected in one list. The browser already shows it, so
+    # this neither refreshes nor touches the other list's selection.
+    def select_row(key, row)
+      @selected[key] = row.nil? ? nil : row.to_s
+    end
+
+    # ------------------------------------------------------------- render --
+
+    # The spell lists fill the window side by side with the move buttons
+    # between them; casting numbers and options sit in two short panels below.
+    def render(ui, field, save, cancel)
+      setup = self
+      ui.stack(key: 'ewaggle', gap: 6, margin: 8, fill: true) do
+        ui.text(key: 'lists-hint', emphasis: :subtle, wrap: true,
+                content: 'Drag a spell between the lists or double-click it. The buttons move the selected spell.')
+        setup.render_lists(ui)
+        ui.columns(key: 'settings', count: 2, weights: [2, 3], gap: 8, row_align: :start) do
+          setup.render_casting(ui, field, '0')
+          setup.render_options(ui, field, '1')
+        end
+        setup.render_sonic(ui, field)
+        setup.render_footer(ui, save, cancel)
+      end
+    end
+
+    def render_lists(ui)
+      setup = self
+      keys = row_keys
+      ui.split(key: 'lists', orientation: :horizontal, position: 50, fill: true) do
+        ui.stack(slot: 'first', key: 'list-left', gap: 4, fill: true) do
+          setup.render_spell_table(ui, :not_to_cast, keys)
+          ui.button(key: 'to-cast', label: 'Cast selected  >>',
+                    tooltip: 'Move the spell selected under Spells Not to Cast into Spells to cast.',
+                    on: { activate: setup.cb { setup.move_selected(:cast_list) } })
+        end
+        ui.stack(slot: 'second', key: 'list-right', gap: 4, fill: true) do
+          setup.render_spell_table(ui, :cast_list, keys)
+          ui.button(key: 'to-not-cast', label: '<<  Do not cast selected',
+                    tooltip: 'Move the spell selected under Spells to cast into Spells Not to Cast.',
+                    on: { activate: setup.cb { setup.move_selected(:not_to_cast) } })
+        end
+      end
+    end
+
+    def render_spell_table(ui, key, keys)
+      setup = self
+      rows = Setup.sort_spells(@settings[key].uniq).map { |text| { key: keys.fetch(text), cells: { 'spell' => text.strip } } }
+      selected = rows.any? { |r| r[:key] == @selected[key] } ? [@selected[key]] : []
+      ui.table(key: "list-#{key}", columns: [{ key: 'spell', label: LISTS.fetch(key) }], rows: rows,
+               headers: true, selection: :single, selected: selected, activation: :double, fill: true,
+               transfer_group: TRANSFER_GROUP, search_column: 'spell',
+               tooltip: "#{rows.size} spells. Drag a row to the other list or double-click it to move it.",
+               on: {
+                 row_drop: setup.cb { |ev| setup.move_spell(ev.payload[:row].to_s, key) },
+                 row_activate: setup.cb { |ev| setup.move_spell(ev.payload[:row].to_s, setup.other_list(key)) },
+                 selection_change: ->(ev) { setup.select_row(key, Array(ev.payload[:rows]).first) }
+               })
+    end
+
+    CASTING = { start_at: 'Cast below', stop_at: 'Stop at', refreshable_min: 'Minimum time',
+                armor_min: 'Armor buffs', reserve_mana: 'Reserve mana' }.freeze
+
+    # Label and number side by side; the tooltips explain each.
+    def render_casting(ui, field, slot)
+      setup = self
+      ui.group(slot: slot, key: 'casting', label: 'Casting') do
+        ui.grid(key: 'casting-grid', cols: 4, homogeneous: false, row_gap: 4, column_gap: 8) do
+          CASTING.each do |key, label|
+            ui.text(key: "#{key}-label", content: label, tooltip: SPIN_TIPS.fetch(key))
+            field.call(ui, key, width: 70)
+          end
+          unless setup.disabled.include?(:retribution_spell)
+            ui.text(key: 'retribution_label', content: 'Retribution spell')
+            field.call(ui, :retribution_spell, width: 70)
+          end
+        end
+      end
+    end
+
+    def render_options(ui, field, slot)
+      off = disabled
+      shown = %i[use_multicast skip_short_spells bail_no_mana skip_not_sharing use_203 use_515
+                 use_wracking wander_to_wrack use_power use_concentration use_mana].reject { |key| off.include?(key) }
+      half = (shown.size + 1) / 2
+      ui.group(slot: slot, key: 'options', label: 'Options') do
+        ui.columns(key: 'options-cols', count: 2, gap: 8, row_align: :start) do
+          [shown.first(half), shown.drop(half)].each_with_index do |keys, i|
+            ui.stack(slot: i.to_s, key: "options-#{i}", gap: 4) { keys.each { |key| field.call(ui, key) } }
+          end
+        end
+      end
+    end
+
+    # Bards only: one row per sonic spell the character knows.
+    def render_sonic(ui, field)
+      sonic = [[1012, :sonic_weapon, 'Sonic weapon', 'https://gswiki.play.net/Weapon'],
+               [1009, :sonic_shield, 'Sonic shield', 'https://gswiki.play.net/Sonic_Shield_Song_(1009)'],
+               [1014, :sonic_armor, 'Sonic armor', 'https://gswiki.play.net/Sonic_Armor_(1014)']].select { |num, *| Spell[num].known? }
+      return if sonic.empty?
+
+      ui.group(key: 'sonic', label: 'Sonic') do
+        ui.grid(key: 'sonic-grid', cols: 2, homogeneous: false, expand_columns: [2], row_gap: 4, column_gap: 8) do
+          sonic.each do |_num, key, label, url|
+            ui.markdown(key: "#{key}_label", content: "[#{label}](#{url})")
+            field.call(ui, key)
+          end
+        end
+      end
+    end
+
+    def render_footer(ui, save, cancel)
+      setup = self
+      ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
+        ui.text(slot: '0', key: 'footer-text', wrap: true, emphasis: :subtle,
+                content: "#{setup.status.empty? ? '' : "#{setup.status}    "}Cancel or closing the window discards changes.")
+        ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
+        save.call(ui, slot: '2', variant: :primary, tooltip: 'Save the settings to your ewaggle profile and close this window.')
+      end
+    end
+
+    attr_reader :status
+  end
+end
+
+# Profile loading/saving
+module Ewaggle
+  @@data ||= nil
+
+  def self.data
+    @@data
+  end
+
+  def self.armor_spells
+    {
+      "Armor Blessing"      => '9510',
+      "Armored Casting"     => '9506',
+      "Armored Evasion"     => '9505',
+      "Armored Fluidity"    => '9507',
+      "Armor Reinforcement" => '9509',
+      "Armored Stealth"     => '9508',
+      "Armor Support"       => '9504'
+    }
+  end
+
+  def self.get_script_version
+    data = Script.list.find { |x| x.name == Script.current.name }.inspect
+    return data[/version: (\d+\.\d+\.\d+)/i, 1]
+  end
+
+  def self.load(settings)
+    @@data = Data.new(settings)
+  end
+
+  def self.load_defaults()
+    default_no_cast = []
+    default_cast = []
+
+    cast_list = [
+      101, 102, 103, 107, 115, 120,
+      202, 211, 215, 219,
+      303, 307, 310, 313, 314, 319, 320,
+      401, 406, 414, 425, 430,
+      503, 507, 508, 509, 513, 520, 535,
+      601, 602, 604, 605, 606, 612, 613, 617, 618, 620, 625, 640,
+      704, 712, 716,
+      905, 911, 913, 920,
+      1003, 1006, 1007, 1010, 1019,
+      1109, 1119, 1125, 1130,
+      1202, 1204, 1208, 1214, 1215, 1220,
+      1601, 1603, 1606, 1610, 1611, 1612, 1616
+    ]
+
+    cast_list.delete_if { |spell| !(Spell[spell].known? && Spell[spell].time_per > 0) }
+
+    gtk_spells = []
+    Spell.list.each { |spell| gtk_spells.push(spell) if (spell.known? && spell.time_per > 0 && spell.num.to_s =~ /(?:[1-4][0-9]|50|0[1-9])$/) }
+    gtk_spells.push(Spell[511]) if Spell[511].known?
+    gtk_spells.sort_by!(&:num)
+
+    gtk_spells.each do |spell|
+      if cast_list.include?(spell.num)
+        default_cast << "#{spell.num}  #{spell.name}"
+      else
+        default_no_cast << "#{spell.num}  #{spell.name}"
+      end
+    end
+
+    Ewaggle.armor_spells.each { |name, number|
+      next unless Armor.known?(name)
+      if name =~ /Blessing/ && Spell[9510].known?.nil?
+        Lich::Messaging.msg('yellow', " The effect-list.xml is out of date.")
+        Lich::Messaging.msg('yellow', " Update with ;repository download effect-list.xml")
+        exit
+      end
+      default_no_cast << "#{number} #{name}"
+    }
+
+    # set up cast_list for the new format
+    new_cast_list = []
+    CharSettings['cast_list'].each do |spell|
+      new_cast_list << "#{spell}  #{Spell[spell].name}"
+    end
+
+    default_cast_list = new_cast_list.length.positive? ? new_cast_list : default_cast
+
+    default_hash = {
+      :start_at          => CharSettings['start_at'] || 180,
+      :stop_at           => [CharSettings['stop_at'] || 180, 250].min,
+      :refreshable_min   => CharSettings['unstackable_min'] || 15,
+      :armor_min         => 15,
+      :use_multicast     => CharSettings['use_multicast'] || true,
+      :use_wracking      => CharSettings['use_wracking'] || false,
+      :wander_to_wrack   => CharSettings['wander_to_wrack'] || false,
+      :use_power         => CharSettings['use_power'] || false,
+      :use_mana          => CharSettings['use_mana'] || false,
+      :use_concentration => CharSettings['use_concentration'] || false,
+      :skip_not_sharing  => false,
+      :skip_short_spells => CharSettings['skip_short_spells'] || false,
+      :bail_no_mana      => CharSettings['bail_no_mana'] || false,
+      :reserve_mana      => CharSettings['reserve_mana'] || 0,
+      :retribution_spell => CharSettings['retribution_spell'] || "",
+      :cast_list         => default_cast_list,
+      :not_to_cast       => default_no_cast
+    }
+
+    return default_hash
+  end
+
+  def self.load_profile
+    filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ewaggle.yaml')
+
+    if File.exist?(filename)
+      settings_hash = YAML.load_file(filename)
+    else
+      settings_hash = Ewaggle.load_defaults
+    end
+
+    settings_hash
+  end
+
+  def self.save_profile
+    if Ewaggle.data.settings == Ewaggle.data.original_settings
+      respond
+      Lich::Messaging.msg('plain', " Nothing to save. No changes were made.")
+      respond
+    else
+      filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ewaggle.yaml')
+      File.write(filename, Ewaggle.data.settings.to_yaml)
+      respond
+      Lich::Messaging.msg('plain', " Settings saved to file: #{filename}.")
+      respond
+      Ewaggle.data.original_settings = Marshal.load(Marshal.dump(Ewaggle.data.settings))
+    end
+  end
+
+  def self.test
+    echo "test"
+    # target_list = Ewaggle.target_list(Script.current.vars)
+    # target_info = Ewaggle.target_info(target_list)
+    # echo target_list
+  end
+end
+
+# Misc Utility methods
+module Ewaggle
+  def self.determine_bonus(spell)
+    bonus_list = []
+    bonus_list.push "#{'+' if spell.bolt_as > 0}#{spell.bolt_as} bAS" unless spell.bolt_as.zero?
+    bonus_list.push "#{'+' if spell.physical_as > 0}#{spell.physical_as} pAS" unless spell.physical_as.zero?
+    bonus_list.push "#{'+' if spell.bolt_ds > 0}#{spell.bolt_ds} bDS" unless spell.bolt_ds.zero?
+    bonus_list.push "#{'+' if spell.physical_ds > 0}#{spell.physical_ds} pDS" unless spell.physical_ds.zero?
+    bonus_list.push "#{'+' if spell.elemental_cs > 0}#{spell.elemental_cs} eCS" unless spell.elemental_cs.zero?
+    bonus_list.push "#{'+' if spell.spirit_cs > 0}#{spell.spirit_cs} spCS" unless spell.spirit_cs.zero?
+    bonus_list.push "#{'+' if spell.sorcerer_cs > 0}#{spell.sorcerer_cs} soCS" unless spell.sorcerer_cs.zero?
+    bonus_list.push "#{'+' if spell.elemental_td > 0}#{spell.elemental_td} eTD" unless spell.elemental_td.zero?
+    bonus_list.push "#{'+' if spell.spirit_td > 0}#{spell.spirit_td} spTD" unless spell.spirit_td.zero?
+    bonus_list.push "#{'+' if spell.sorcerer_td > 0}#{spell.sorcerer_td} soTD" unless spell.sorcerer_td.zero?
+    bonus_list.push "#{'+' if spell.strength.to_i > 0}#{spell.strength} str" unless spell.strength.to_i.zero?
+    bonus_list.push "#{'+' if spell.dodging.to_i > 0}#{spell.dodging} dodge" unless spell.dodging.to_i.zero?
+    bonus_list.push 'Utility' if spell.num == 511
+
+    # Armor buffs
+    bonus_list.push 'Can prevent further wounds from magical attacks.' if spell.num == 9510
+    bonus_list.push 'Can better recover from a failed spell casting attempt.' if spell.num == 9506
+    bonus_list.push 'Better fitting for dodging attacks.' if spell.num == 9505
+    bonus_list.push 'Can cast spells more easily while wearing the armor.' if spell.num == 9507
+    bonus_list.push 'Better protects against repeated blows.' if spell.num == 9509
+    bonus_list.push 'Can help mask characters movements.' if spell.num == 9508
+    bonus_list.push 'Better supports the weight of the armor.' if spell.num == 9504
+
+    bonus_list.join(', ')
+  end
+
+  # 203 food is whatever new item lands in hand after the cast, so custom food nouns just work
+  # 203 food is whatever new item lands in hand after the cast (libeo's)
+  def self.summon_bread = EO::Casting.summon_bread(Casting.resources)
+
+  def self.eat_bread(bypass_check: false)
+    return unless Ewaggle.data.settings[:use_203] || bypass_check
+    EO::Casting.eat_bread(Casting.resources)
+  end
+
+  def self.fix_spell(spell)
+    if (spell.class == Integer) or (spell.class == String and spell =~ /^[0-9]+$/)
+      spell = Spell[spell.to_i]
+    end
+    unless spell.class == Spell
+      echo "error: missing spell information for #{spell}"
+      exit
+    end
+    spell
+  end
+
+  def self.get_target_info(target)
+    info = EO::Casting.active_on(target)
+    return info if info['sharing']
+    return nil if Ewaggle.data.settings[:skip_not_sharing]
+
+    respond
+    Lich::Messaging.msg('plain', "#{target.capitalize} is not sharing spell information using SPELL PRIVACY")
+    Lich::Messaging.msg('plain', "A single cast of each spell will be used instead.")
+    Lich::Messaging.msg('plain', "To skip characters that don't share, toggle the 'skip not sharing' in the UI or CLI")
+    respond
+    info
+  end
+
+  def self.help
+    script_name = "#{$clean_lich_char}#{Script.current.name}"
+
+    help_item = {
+      "help"                       => "show this message",
+      "setup"                      => "show setup window",
+      "list"                       => "show current settings",
+      "info"                       => "show what will be cast and how much it will cost",
+      "info [name1] [name2]"       => "shows info for each character",
+      "separator1"                 => "",
+      "add [spell#]"               => "add one or more spells to the cast list",
+      "delete [spell#]"            => "delete one or more spells from the cast list",
+      "separator2"                 => "",
+      "start-at [minutes]"         => "start casting stackable spells when there is (start_at) or less minutes remaining",
+      "stop-at [minutes]"          => "stop casting if spell duration is above (stop_at)",
+      "refreshable-min [minutes]"  => "minimum time less before casing for non-stacking spells",
+      "separator3"                 => "",
+      "multicast [on/off]"         => "use multicast",
+      "wracking [on/off]"          => "use sign of wracking when out of mana",
+      "wander [on/off]"            => "wander up to 20 rooms to find an empty room to wrack, then return",
+      "power [on/off]"             => "use sigil of power when out of mana",
+      "concentration [on/off]"     => "use sigil of concentration when out of mana",
+      "mana [on/off]"              => "use symbol of mana when out of mana",
+      "skip-short-spells [on/off]" => "don't cast spells with a duration less than #{Ewaggle.data.short_spell_time} minutes on others",
+      "bail [on/off]"              => "stop casting if run out of mana/resource",
+      "use_203 [on/off]"           => "cast/eat mana bread if 203 is known",
+      "use_515 [on/off]"           => "cast 515 if know",
+      "skip_not_sharing [on/off]"  => "skip characters not sharing spell information",
+      "retribution-spell [#|none]" => "spell number for chant retribution after casting cloak of shadows",
+      "separator4"                 => "",
+      "just_script_name"           => "spell yourself up",
+      "[name1] [name2] ..."        => "spell up the given people (may include your own name or word self)",
+      "separator5"                 => "",
+      "combined1"                  => { value: "Any or all saved options can be overridden on the command line without being saved using the following syntax:", colspan: 2 },
+      "combined2"                  => { value: "#{script_name} --cast-list=401,406,503 --start-at=60 --stop-at=120 --retribution-spell=717 Jim Joe Bob", colspan: 2 },
+      "combined3"                  => { value: "--skip-armor will skip casting any armor buffs.", colspan: 2 },
+      "combined4"                  => { value: "--save as the last item will save command line entries to your profile.", colspan: 2 },
+      "separator6"                 => "",
+      "combined5"                  => { value: 'Sonic gear can be cast using --cast_list=1009("tower shield") or just --cast_list=1009 for the default.', colspan: 2 },
+      "combined6"                  => { value: "*** Sonic Gear requires parentheses like: #{script_name} add 1009(\"tower shield\") ***", colspan: 2 },
+    }
+
+    rows = []
+    help_item.each do |key, value|
+      if key =~ /separator/
+        rows << :separator
+      elsif key =~ /combine/
+        rows << [value]
+      elsif key =~ /just_script_name/
+        rows << ["#{script_name}", value]
+      else
+        rows << ["#{script_name} #{key}", value]
+      end
+    end
+
+    table = Terminal::Table.new(
+      title: "#{Script.current.name.capitalize} v#{Ewaggle.get_script_version} Help",
+      rows: rows,
+    )
+
+    respond
+    respond table
+    respond
+
+    exit
+  end
+
+  def self.info(target_info)
+    dry_run = {}
+    max_spell_name = 0
+
+    # Stackable
+    Ewaggle.data.cast_list.each do |spell|
+      spell = Ewaggle.fix_spell(spell)
+      max_spell_name = [max_spell_name, spell.name.length].max
+      target_info.keys.each do |name|
+        next unless spell.stackable?(:target => name)
+        next unless spell.available?(:target => name)
+        next unless spell.time_per(:target => name) > Ewaggle.data.short_spell_time
+        next if (name == Char.name) && (spell.circlename == 'Bard') && spell.active?
+
+        dry_run[name] ||= Hash.new
+        existing_duration = target_info[name][spell.num.to_s] ||= 0
+        if existing_duration < Ewaggle.data.settings[:start_at]
+          while existing_duration < Ewaggle.data.settings[:stop_at]
+            dry_run[name][spell.num.to_s] = dry_run[name][spell.num.to_s] + 1
+            existing_duration += spell.time_per(:target => name)
+            break unless target_info['sharing']
+          end
+        end
+      end
+    end
+
+    # Refreshable
+    Ewaggle.data.cast_list.each do |spell|
+      spell = Ewaggle.fix_spell(spell)
+      target_info.keys.each do |name|
+        next unless spell.refreshable?(:target => name)
+        next unless spell.available?(:target => name)
+        next unless spell.time_per(:target => name) > Ewaggle.data.short_spell_time
+        next if (name == Char.name) && (spell.circlename == 'Bard') && spell.active?
+
+        dry_run[name] ||= Hash.new
+        existing_duration = target_info[name][spell.num.to_s] ||= 0
+        if (existing_duration < Ewaggle.data.settings[:refreshable_min])
+          dry_run[name][spell.num.to_s] = dry_run[name][spell.num.to_s] + 1
+        end
+      end
+    end
+
+    # Armor Support
+    Ewaggle.data.armor_list.each do |buff|
+      spell = Ewaggle.fix_spell(buff[/^\d+/].to_i)
+
+      target_info.keys.each do |name|
+        dry_run[name] ||= Hash.new
+        existing_duration = target_info[name][spell.num.to_s] ||= 0
+        if (existing_duration < Ewaggle.data.settings[:armor_min])
+          dry_run[name][spell.num.to_s] = dry_run[name][spell.num.to_s] + 1
+        end
+      end
+    end
+
+    # Solid Block
+    Ewaggle.data.cast_list.each do |spell|
+      spell = Ewaggle.fix_spell(spell)
+      target_info.keys.each do |name|
+        next if spell.stackable?(:target => name) or spell.refreshable?(:target => name)
+        next unless spell.available?(:target => name)
+        next unless spell.time_per(:target => name) > Ewaggle.data.short_spell_time
+        next if (name == Char.name) && (spell.circlename == 'Bard') && spell.active?
+
+        dry_run[name] ||= Hash.new
+        existing_duration = target_info[name][spell.num.to_s] ||= 0
+        unless existing_duration > 0
+          dry_run[name][spell.num.to_s] = dry_run[name][spell.num.to_s] + 1
+        end
+      end
+    end
+
+    # Disk
+    Ewaggle.data.cast_list.each do |spell|
+      spell = Ewaggle.fix_spell(spell)
+      target_info.keys.each do |name|
+        next unless spell.num == 511
+
+        disk_nouns_regex = /\b(?:bassinet|cassone|chest|coffer|coffin|coffret|disk|hamper|saucer|sphere|trunk|tureen)\b/
+        disk = GameObj.loot.find { |l| l.name =~ /#{name} #{disk_nouns_regex}\b/ }
+
+        unless disk
+          dry_run[name] ||= Hash.new
+          dry_run[name][spell.num.to_s] = dry_run[name][spell.num.to_s] + 1
+        end
+      end
+    end
+
+    dry_run.each do |name, hash|
+      if hash.empty?
+        respond
+        Lich::Messaging.msg('plain', " #{name.capitalize}: No spells needed.")
+        respond
+      else
+        total_casts = 0
+        total_mana  = 0
+
+        rows = []
+        rows << ["#{name.capitalize}:", "Casts", "Mana", "Duration", "Bonus"]
+        rows << :separator
+
+        for spell, casts in hash
+          spell = Spell[spell]
+          total_casts += casts
+          total_mana += casts * spell.mana_cost
+
+          if spell.num == 511
+            spell_time = "Indef"
+          else
+            spell_duration = (spell.time_per(target: name) * casts * 60).to_i
+            spell_time = "%d:%02d" % [spell_duration / 3600, (spell_duration % 3600) / 60]
+          end
+
+          rows << ["#{spell.num} #{spell.name}", { value: casts, alignment: :right }, { value: spell.mana_cost * casts, alignment: :right }, { value: spell_time, alignment: :right }, Ewaggle.determine_bonus(spell)]
+        end
+
+        rows << :separator
+        rows << [{ value: "Total:", alignment: :right }, { value: total_casts, alignment: :right }, { value: total_mana, alignment: :right }, "", ""]
+
+        table = Terminal::Table.new :title => "#{Script.current.name.capitalize} v#{Ewaggle.get_script_version}", :rows => rows
+
+        respond
+        respond table
+        respond
+      end
+    end
+  end
+
+  def self.list
+    rows = []
+    rows << ["Parameters", "Values"]
+    rows << :separator
+    rows << ["start at", Ewaggle.data.settings[:start_at]]
+    rows << ["stop at", Ewaggle.data.settings[:stop_at]]
+    rows << ["refreshable min", Ewaggle.data.settings[:refreshable_min]]
+    rows << ["multicast", Ewaggle.data.settings[:use_multicast]]
+    rows << ["sign of wracking", Ewaggle.data.settings[:use_wracking]]
+    rows << ["wander to wrack", Ewaggle.data.settings[:wander_to_wrack]]
+    rows << ["sigil of power", Ewaggle.data.settings[:use_power]]
+    rows << ["sigil of concen", Ewaggle.data.settings[:use_concentration]]
+    rows << ["symbol of mana", Ewaggle.data.settings[:use_mana]]
+    rows << ["skip short spells", Ewaggle.data.settings[:skip_short_spells]]
+    rows << ["reserve mana", Ewaggle.data.settings[:reserve_mana]]
+    rows << ["bail no resources", Ewaggle.data.settings[:bail_no_mana]]
+    rows << ["use mana bread (203)", Ewaggle.data.settings[:use_203]]
+    rows << ["use rapid fire (515)", Ewaggle.data.settings[:use_515]]
+
+    retribution = Ewaggle.data.settings[:retribution_spell].to_s.empty? ? 'none' : "#{Ewaggle.data.settings[:retribution_spell]} #{Spell[Ewaggle.data.settings[:retribution_spell]]}"
+    rows << ["retribution spell", retribution]
+    rows << ["armor list", Ewaggle.data.armor_list.join(', ')] unless Ewaggle.data.armor_list.empty?
+    rows << ["cast list", Ewaggle.word_wrap(Ewaggle.data.cast_list.join(', '), 30)]
+
+    table = Terminal::Table.new(
+      title: "#{Script.current.name.capitalize} v#{Ewaggle.get_script_version} Settings",
+      rows: rows,
+    )
+
+    table.align_column 0, :right
+
+    respond
+    respond table
+    respond
+  end
+
+  def self.manage_sonic(item)
+    number, parameter = item.match(/^(\d+)\(([\w\s\-\'\"]+)\)$/).captures
+
+    if number == "1009"
+      Ewaggle.data.settings[:sonic_shield] = parameter.gsub(/^"|"$/, '')
+    elsif number == "1012"
+      Ewaggle.data.settings[:sonic_weapon] = parameter.gsub(/^"|"$/, '')
+    elsif number == "1014"
+      Ewaggle.data.settings[:sonic_armor] = parameter.gsub(/^"|"$/, '')
+    else
+      respond
+      Lich::Messaging.msg('yellow', " This isn't sonic gear #{item}")
+    end
+
+    return number
+  end
+
+  def self.mana_bread(target)
+    if target == Char.name
+      Ewaggle.eat_bread(bypass_check: true)
+    else
+      EO::Casting.drop_bread(Casting.resources)
+    end
+  end
+
+  def self.process_cli(pattern, key)
+    return unless (setting = Script.current.vars.map { |var| var.match(pattern) }.compact.first&.to_s)
+
+    fix_option = { 'on' => true, 'true' => true, 'yes' => true, 'off' => false, 'false' => false, 'no' => false, 'none' => false }
+    value = setting.split("=").last.strip
+
+    # Determine the value
+    if fix_option.key?(value.downcase)
+      value = fix_option[value.downcase] # Convert to boolean
+    elsif value.include?(",") && value.match?(/^\d+(,\d+)*$/)
+      value.split(",").map(&:to_i) # Convert to an array of integers
+    elsif value.include?(",") && value.match?(/\(\w.*?\)|\d+/)
+      value.split(/(?<=\))?,/)
+    elsif value.match?(/^(\d+)\(([\w\s\-\'\"]+)\)$|^(\d+)$/)
+      [value]
+    elsif value !~ /--save|--skip-armor/
+      Lich::Messaging.msg('yellow', " Wasn't able to match #{value}")
+    end
+
+    # Adjust a couple of them
+    if key == :retribution_spell && value.is_a?(FalseClass)
+      Ewaggle.data.settings[key] = ''
+    elsif key == :cast_list
+      Ewaggle.data.settings[key] = []
+      Ewaggle.data.cast_list = []
+      items = value.split(",")
+      items.each do |spell|
+        if spell.match?(/^(\d+)\(([\w\s\-\'\"]+)\)$/)
+          spell = Ewaggle.manage_sonic(spell)
+        end
+
+        next unless Ewaggle.valid_spell?(spell)
+
+        if Ewaggle.armor_spells.values.include?(spell)
+          Ewaggle.data.settings[key] << "#{Spell[spell].num} #{Spell[spell].name}"
+          Ewaggle.data.armor_list << "#{Spell[spell].num} #{Spell[spell].name}"
+        else
+          Ewaggle.data.settings[key] << "#{Spell[spell].num}  #{Spell[spell].name}"
+          Ewaggle.data.cast_list << Spell[spell].num
+        end
+      end
+    elsif value == "--skip-armor"
+      Ewaggle.data.armor_list = []
+      Ewaggle.data.settings[:cast_list].reject! do |entry|
+        Ewaggle.armor_spells.values.any? { |spell_num| entry.start_with?("#{spell_num} ") }
+      end
+    elsif value == "--save"
+      Ewaggle.data.settings[:cast_list].sort_by! { |str| str.to_i }
+      Ewaggle.save_profile
+      Ewaggle.load(Ewaggle.load_profile())
+    elsif ['false', 'true'].include?(value.to_s)
+      Ewaggle.data.settings[key] = value
+    else
+      Ewaggle.data.settings[key] = value.to_i
+    end
+
+    Script.current.vars.delete(setting)
+  end
+
+  def self.process_options
+    msg_array = []
+    need_save = false
+    fix_option = { 'on' => true, 'true' => true, 'yes' => true, 'off' => false, 'false' => false, 'no' => false, 'none' => false }
+    item = Script.current.vars[1]
+    value = Script.current.vars[2]
+    matched_key = Ewaggle.data.options.keys.find { |pattern| Script.current.vars[1].match?(pattern) }
+    data_key = Ewaggle.data.options[matched_key]
+
+    case
+    when fix_option.key?(value.downcase)
+      value = fix_option[value.downcase] # Convert to boolean
+
+      if Ewaggle.data.settings[data_key] == value
+        msg_array << " #{data_key} is already set to #{value}"
+      else
+        Ewaggle.data.settings[data_key] = value
+
+        msg_array << " #{data_key} has been set to #{value}"
+        need_save = true
+      end
+    when value.match?(/^\d+$/) && data_key != :cast_list
+      if Ewaggle.data.settings[data_key].to_s =~ /#{value}/
+        msg_array << " #{data_key} is already set to #{value}"
+      else
+        Ewaggle.data.settings[data_key] = data_key == :retribution_spell ? value.to_s : value.to_i
+
+        msg_array << " #{data_key} has been set to #{value}"
+        need_save = true
+      end
+    when data_key == :retribution_spell && value.is_a?(FalseClass)
+      Ewaggle.data.settings[data_key] = ''
+
+      msg_array << " #{item} has been removed"
+      need_save = true
+    when item =~ /add/i
+      values = Script.current.vars[0].split("add").last.strip
+      add_array = values.split(/(?:,\s*|\s+)(?=\d+(?:\(|$))/)
+
+      add_array.each do |spell|
+        if spell.match?(/^(\d+)\(([\w\s\-\'\"]+)\)$/)
+          spell = Ewaggle.manage_sonic(spell)
+        end
+
+        next unless Ewaggle.valid_spell?(spell)
+
+        if Ewaggle.data.cast_list.include?(spell.to_i) || Ewaggle.data.armor_list.include?("#{Spell[spell].num} #{Spell[spell].name}")
+          msg_array << " #{spell} #{Spell[spell].name} is already in the casting list."
+        elsif Ewaggle.armor_spells.values.include?(spell)
+          Ewaggle.data.settings[:cast_list] << "#{Spell[spell].num} #{Spell[spell].name}"
+
+          msg_array << " #{spell} #{Spell[spell].name} has been added to the casting list"
+          need_save = true
+        else
+          Ewaggle.data.settings[:cast_list] << "#{Spell[spell].num}  #{Spell[spell].name}"
+
+          msg_array << " #{spell} #{Spell[spell].name} has been added to the casting list"
+          need_save = true
+        end
+      end
+    when item =~ /remove/i
+      values = Script.current.vars[0].split("remove").last.strip
+      del_array = values.split(/(?:,\s*|\s+)(?=\d+(?:\(|$))/)
+
+      del_array.each do |spell|
+        if spell.match?(/^(\d+)\(([\w\s\-\'\"]+)\)$/)
+          spell = Ewaggle.manage_sonic(spell)
+        end
+
+        if Ewaggle.data.cast_list.include?(spell.to_i) || Ewaggle.data.armor_list.include?("#{Spell[spell].num} #{Spell[spell].name}")
+          Ewaggle.data.settings[:cast_list].reject! { |entry| entry.start_with?("#{Spell[spell].num} ") }
+
+          msg_array << " #{spell} #{Spell[spell].name} has been removed from the casting list."
+          need_save = true
+        else
+          msg_array << " #{spell} #{Spell[spell].name} was NOT found in the casting list."
+        end
+      end
+    end
+
+    respond
+    msg_array.each do |msg|
+      Lich::Messaging.msg('yellow', msg)
+    end
+    respond
+
+    if need_save
+      Ewaggle.data.settings[:cast_list].sort_by! { |str| str.to_i }
+      Ewaggle.save_profile
+      Ewaggle.load(Ewaggle.load_profile())
+    end
+  end
+
+  def self.target_info(target_list)
+    target_info = Hash.new
+    target_list.each do |name|
+      if name == Char.name
+        target_info[Char.name] = Hash.new
+        Spell.active.each { |spell| target_info[Char.name][spell.num.to_s] = spell.timeleft }
+      else
+        spell_info = Ewaggle.get_target_info(name)
+        target_info[name] = spell_info unless spell_info.nil?
+      end
+    end
+
+    return target_info
+  end
+
+  def self.target_list(vars)
+    target_list = []
+    check_vars = vars[1] =~ /info/i ? vars[2] : vars[1]
+
+    if check_vars
+      Script.current.vars[1..-1].each do |bad_name|
+        if (pc = GameObj.pcs.find { |gameobj_pc| gameobj_pc.noun =~ /^#{bad_name}/i })
+          target_list.push(pc.noun)
+        elsif Char.name =~ /^#{bad_name}/i || bad_name =~ /self/i
+          target_list.push(Char.name)
+        else
+          unless bad_name == 'info'
+            respond
+            Lich::Messaging.msg('plain', " Bad Target: #{bad_name.capitalize}")
+            respond
+          end
+        end
+      end
+    else
+      target_list = [Char.name]
+    end
+
+    return target_list
+  end
+
+  def self.valid_spell?(spell)
+    unless (Spell[spell] && Spell[spell].known? && Spell[spell].time_per > 0) || (Spell[spell].name =~ /Armor/i && Spell[spell].name !~ /sonic|mage/i && Armor.known?(Spell[spell].name) || (Spell[spell].num == 511 && Spell[spell].known?))
+      respond
+      if Spell[spell].known?
+        Lich::Messaging.msg('plain', "#{Spell[spell].num} #{Spell[spell].name} is not a buff spell.")
+      else
+        Lich::Messaging.msg('plain', "#{Spell[spell].num} #{Spell[spell].name} is an unknown spell.")
+      end
+      return false
+    end
+
+    return true
+  end
+
+  def self.word_wrap(text, width = 60)
+    text.gsub(/(.{1,#{width}})(\s+|\Z)/, "\\1\n").strip
+  end
+end
+
+# Casting methods
+module Ewaggle
+  module Casting
+    def self.cast_spell(spell, target, num_multicast = 1)
+      return :bad_spell unless Ewaggle.valid_spell?(spell)
+
+      Casting.check_mana(spell, num_multicast)
+      argument = nil
+      if target == Char.name
+        argument = { 1009 => :sonic_shield, 1012 => :sonic_weapon, 1014 => :sonic_armor }[spell.num]
+        argument &&= Ewaggle.data.settings[argument]
+      end
+      result = EO::Casting.cast(spell, target: target == Char.name ? nil : target, multicast: num_multicast, argument: argument)
+      result == :refused_here ? :bad_spell : result
+    end
+
+    def self.cast_support
+      if Ewaggle.data.settings[:use_concentration] && Spell[9714].affordable? && !Spell[9714].active?
+        Spell[9714].cast
+      end
+
+      if Ewaggle.data.settings[:use_203] && Spell[203].affordable?
+        Ewaggle.eat_bread
+      end
+
+      if Ewaggle.data.settings[:use_515] && Spell[515].affordable? && !Spell[515].active?
+        Spell[515].cast
+      end
+    end
+
+    def self.cast_refreshable(target, info)
+      Ewaggle.data.cast_list.each do |spell|
+        spell = Ewaggle.fix_spell(spell)
+
+        next if spell.stackable?(:target => target)
+        next unless spell.available?(:target => target)
+        next unless spell.time_per(:target => target) > Ewaggle.data.short_spell_time
+        next if Ewaggle.data.skip_targets.include?(target) || Ewaggle.data.skip_spells.include?(spell.num)
+        next if (target == Char.name) && (spell.circlename == 'Bard') and spell.active?
+
+        existing_duration = info[spell.num.to_s] ||= 0
+        next if existing_duration > Ewaggle.data.settings[:refreshable_min]
+
+        Casting.cast_support
+
+        cast_result = Casting.cast_spell(spell, target)
+        if cast_result == :bad_spell
+          Ewaggle.data.skip_spells.push(spell.num)
+        elsif cast_result == :bad_target
+          Ewaggle.data.skip_targets.push(target)
+        end
+      end
+
+      # Armor Support
+      Ewaggle.data.armor_list.each do |buff|
+        spell_no = buff[/^\d+/]
+        spell = Ewaggle.fix_spell(spell_no)
+        buff_name = buff.sub(/^\d+\s*/, '')
+
+        Casting.check_stamina(spell, 1)
+
+        existing_duration = info[spell_no] ||= 0
+        next if existing_duration > Ewaggle.data.settings[:armor_min]
+
+        Armor.use(buff_name, target)
+      end
+    end
+
+    def self.cast_solid(target, info)
+      Ewaggle.data.cast_list.each do |spell|
+        spell = Ewaggle.fix_spell(spell)
+
+        next if spell.stackable?(:target => target) || spell.refreshable?(:target => target)
+        next unless spell.available?(:target => target)
+        next unless spell.time_per(:target => target) > Ewaggle.data.short_spell_time
+        next if (target == Char.name) && (spell.circlename == 'Bard') && spell.active?
+        next if Ewaggle.data.skip_targets.include?(target) || Ewaggle.data.skip_spells.include?(spell.num)
+
+        existing_duration = info[spell.num.to_s] ||= 0
+        next unless existing_duration.zero?
+
+        Casting.cast_support
+
+        cast_result = Casting.cast_spell(spell, target)
+        if cast_result == :bad_spell
+          Ewaggle.data.skip_spells.push(spell.num)
+        elsif cast_result == :bad_target
+          Ewaggle.data.skip_targets.push(target)
+        end
+      end
+    end
+
+    def self.cast_stackable(target, info)
+      Ewaggle.data.cast_list = Ewaggle.data.cast_list.sort_by { |n| [625, 1612].include?(n) ? 0 : n }
+      Ewaggle.data.cast_list.each do |spell|
+        spell = Ewaggle.fix_spell(spell)
+
+        next unless spell.stackable?(:target => target)
+        next unless spell.available?(:target => target) || spell.num == 203
+        next unless spell.time_per(:target => target) > Ewaggle.data.short_spell_time || spell.num == 203
+        next if (target == Char.name) && (spell.circlename == 'Bard') && spell.active?
+
+        existing_duration = info[spell.num.to_s] ||= 0
+        next if existing_duration > Ewaggle.data.settings[:start_at] && spell.num != 203
+        max_multicast = Casting.max_multicast(spell)
+
+        Casting.cast_support
+
+        if spell.num == 203
+          Ewaggle.mana_bread(target)
+        else
+          while info[spell.num.to_s] < Ewaggle.data.settings[:stop_at] && !Ewaggle.data.skip_targets.include?(target) && !Ewaggle.data.skip_spells.include?(spell.num)
+            # Adjust number_casts if needed to stay within stop_at
+            remaining_time = Ewaggle.data.settings[:stop_at] - info[spell.num.to_s]
+            min_needed_casts = (remaining_time.to_f / spell.time_per(target: target)).ceil
+            number_casts = [min_needed_casts, max_multicast].min
+
+            break unless number_casts.positive? # Prevents unnecessary casting
+
+            number_casts = 1 unless Ewaggle.data.settings[:use_multicast] && spell.multicastable? && (info['sharing'] || target == Char.name)
+
+            cast_result = Casting.cast_spell(spell, target, number_casts)
+
+            case cast_result
+            when :bad_spell
+              Ewaggle.data.skip_spells.push(spell.num)
+              break
+            when :bad_target
+              Ewaggle.data.skip_targets.push(target)
+              break
+            else
+              info[spell.num.to_s] += spell.time_per(target: target) * number_casts
+            end
+
+            break if !info['sharing']
+          end
+        end
+
+        # Add the retribution spell
+        if spell.num == 712 && target == Char.name && !Ewaggle.data.settings[:retribution_spell].empty?
+          fput "chant retribution #{Ewaggle.data.settings[:retribution_spell]}"
+        end
+      end
+    end
+
+    def self.cast_disk(target)
+      return unless Ewaggle.data.cast_list.include?(511)
+
+      spell = Ewaggle.fix_spell(511)
+
+      disk = GameObj.loot.find { |l| l.name =~ /#{target} #{EO::Loot::DISK_NOUNS}\b/ }
+
+      return if disk
+
+      cast_result = Casting.cast_spell(spell, target)
+      if cast_result == :bad_spell
+        Ewaggle.data.skip_spells.push(spell.num)
+      elsif cast_result == :bad_target
+        Ewaggle.data.skip_targets.push(target)
+      end
+    end
+
+    # How the settings say to make mana: libeo's Casting::Resources.
+    def self.resources
+      st = Ewaggle.data.settings
+      source = if st[:use_wracking] then :wracking
+               elsif st[:use_power] then :power
+               elsif st[:use_mana] then :voln
+               end
+      EO::Casting::Resources.new(reserve: st[:reserve_mana], source: source, bail: st[:bail_no_mana],
+                                 wander_to_wrack: st[:wander_to_wrack])
+    end
+
+    def self.handle_ready(outcome)
+      case outcome
+      when :bail
+        echo 'out of resource, bailing out!'
+        exit
+      when :no_favor
+        echo("You're out of favor! Disabling symbol of mana usage.")
+        Ewaggle.data.settings[:use_mana] = false
+      end
+    end
+
+    def self.check_mana(spell, num_multicast)
+      Casting.handle_ready(EO::Casting.ready(spell, num_multicast, Casting.resources))
+    end
+
+    def self.check_stamina(spell, num_multicast)
+      Casting.handle_ready(EO::Casting.ready(spell, num_multicast, Casting.resources))
+    end
+
+    def self.max_multicast(spell) = EO::Casting.max_multicast(spell)
+  end
+end
+
+# Startup
+module Ewaggle
+  # Load profile if needed
+  unless Ewaggle.data
+    Ewaggle.load(Ewaggle.load_profile())
+  end
+
+  # Capture starting settings
+  Ewaggle.data.original_settings = Marshal.load(Marshal.dump(Ewaggle.data.settings))
+
+  # Process any CLI options
+  Ewaggle.data.cli_options.each { |pattern, key| Ewaggle.process_cli(pattern, key) }
+
+  before_dying {
+    # In case temp changes were made with CLI
+    Ewaggle.load(Ewaggle.load_profile())
+  }
+
+  case Script.current.vars[0]
+  when Regexp.union(Ewaggle.data.options.keys)
+    Ewaggle.process_options
+  when /^load$/i
+    Ewaggle.load(Ewaggle.load_profile())
+  when /^setup$/i
+    if Ewaggle::Setup.available?
+      Ewaggle::Setup.new(Ewaggle.data.settings).start
+      Ewaggle.load(Ewaggle.load_profile)
+    else
+      respond
+      Lich::Messaging.msg('plain', 'The setup window needs the Lich WebUI (a Lich build with WebUI, started without --no-gui).')
+      Lich::Messaging.msg('plain', "For command-line setup, see #{$clean_lich_char}#{Script.current.name} help")
+      respond
+    end
+  when /^help$/i
+    Ewaggle.help
+  when /^list$|^show$/i
+    Ewaggle.list
+  when /^info/
+    target_list = Ewaggle.target_list(Script.current.vars)
+    target_info = Ewaggle.target_info(target_list)
+    Ewaggle.info(target_info)
+  when /^test/i
+    Ewaggle.test
+  when Script.current.vars[0] || nil
+    Ewaggle.data.skip_spells = []
+    Ewaggle.data.skip_targets = []
+
+    target_list = Ewaggle.target_list(Script.current.vars)
+    target_info = Ewaggle.target_info(target_list)
+
+    target_info.each do |target, info|
+      Casting.cast_stackable(target, info)
+      Casting.cast_refreshable(target, info)
+      Casting.cast_solid(target, info)
+      Casting.cast_disk(target)
+    end
+  end
+end

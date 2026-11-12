@@ -1,0 +1,320 @@
+=begin
+
+  Moves around by selecting the adjacent room that was visited least recently.
+
+  Stops in a room only if there is a live, targetable npc in it and the room's
+  claim is yours (no one else is fighting there).
+
+  Use   ;ewander add              and
+          ;ewander remove           to set up boundaries to keep you in your hunting area.
+  Use   ;ewander delay <number>   to set the movement delay
+  Use   ;ewander <npc1> <npc2>    to stop and target specific npcs (priority order, left to right).
+  Use   ;ewander <pc>             to stop for another specific character.
+  Use   ;ewander                  to stop for any targetable npcs.
+
+   author: elanthia-online
+     game: Gemstone
+     tags: movement
+ required: Lich >= 5.22.0
+  version: 2.1.0
+
+  changelog:
+    2.1.0 (2026-11-12):
+      - the step, the Elemental Confluence, picking a named creature and learning
+        what TARGET accepts come from libeo (EO::Wander); needs libeo 0.2.0 and Lich 5.22.0
+    2.0.1 (2026-05-11):
+      - remove non-ascii characters for Warlock/Wizard FE compatibility
+    2.0.0 (2026-04-29):
+      - refactored into EWander module namespace with proper class architecture
+      - find_target now filters animated NPCs (except animated slush) and
+        arm/appendage/claw/limb/pincer/tentacle nouns (except named kraken tentacles)
+      - targeting command only issued for hostile NPCs (via GameObj.targets); non-hostile
+        matches (e.g. town NPCs) still stop wandering but skip the target command
+      - pre-move PC detection now breaks instead of continuing to wander
+      - modern Ruby idioms throughout
+    1.1.0 (2026-03-27):
+      - when given NPC name arguments, auto-target the matched creature before stopping
+      - NPC name arguments are treated as priority order (first arg = highest priority)
+      - check for matching NPCs before moving, catching creatures that enter mid-room
+      - skip player-controlled animates (names containing "animated")
+    1.0.0 (2025-03-19):
+      - initial fork of wander.lic
+=end
+=begin
+  changelog:
+    0.6 (2015-04-11):
+      better wandering for the Elemental Confluence
+    0.5 (2015-04-09):
+      fix searching for people
+    0.4 (2015-04-05):
+      fix disk check
+    0.3 (2015-03-05):
+      added support for the Elemental Confluence
+    0.2 (2013-12-04):
+      added delay setting
+      allow adding/deleting multiple room ids at once
+
+=end
+
+Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+EO.require('0.2.0')
+
+module EWander
+  # ---------------------------------------------------------------------------
+  # Settings helpers
+  # ---------------------------------------------------------------------------
+  module Settings
+    module_function
+
+    def boundary
+      CharSettings['boundary'] ||= []
+    end
+
+    def untargetable
+      CharSettings['untargetable'] ||= []
+    end
+
+    def targetable
+      CharSettings['targetable'] ||= []
+    end
+
+    def delay
+      CharSettings['delay'] ||= 1.0
+    end
+
+    def delay=(value)
+      CharSettings['delay'] = value.to_f
+    end
+
+    def clear!
+      CharSettings['boundary']     = []
+      CharSettings['untargetable'] = []
+      CharSettings['targetable']   = []
+    end
+  end
+
+  # Moving, the Confluence and picking a creature are libeo's (EO::Wander).
+  module Movement
+    module_function
+
+    def wander_rooms
+      $wander_rooms ||= []
+    end
+
+    def wander!
+      # an eloot loot grab in progress finishes before the next step
+      wait_while { ($loot_grab_list.length.to_i > 0) || $loot_working }
+      sleep Settings.delay unless EO::Wander.step(wander_rooms, avoid: Settings.boundary)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # CLI subcommands
+  # ---------------------------------------------------------------------------
+  module CLI
+    module_function
+
+    def run(script)
+      args = script.vars
+      cmd  = args[1]
+
+      case cmd
+      when /\Ahelp\z/i         then show_help
+      when /\A(?:add|set)\z/i  then add_boundary(script)
+      when /\A(?:del(?:ete)?|rem(?:ove)?)\z/i then remove_boundary(script)
+      when /\Adelay\z/i        then set_delay(script)
+      when /\Alist\z/i         then show_list
+      when /\Aclear\z/i        then clear_all
+      when nil                 then Loops.wander_any_target
+      else                          Loops.wander_named_targets(script)
+      end
+    end
+
+    def show_help
+      respond <<~HELP
+
+        ;ewander add              adds the current room to the boundary list
+        ;ewander add <room id>    adds the given room id to the boundary list
+        ;ewander rem              deletes the current room to the boundary list
+        ;ewander rem <room id>    deletes the given room id to the boundary list
+        ;ewander clear            clears the boundary list and npc info
+        ;ewander delay <seconds>  sets the delay before moving to the next room
+        ;ewander list             shows saved boundaries and npc info
+        ;ewander <npc1> <npc2>    wanders around, stopping only for the given npcs
+        ;ewander                  wanders around, stopping only for targetable npcs
+
+      HELP
+    end
+
+    def add_boundary(script)
+      if script.vars[2]
+        script.vars[2..].each do |var|
+          if var =~ /\A[0-9]+\z/
+            Settings.boundary.push(var)
+            echo "room #{var} has been added to the boundary list"
+          else
+            echo "ignoring #{var}: not a room id"
+          end
+        end
+      elsif (room = Room.current)
+        Settings.boundary.push(room.id.to_s)
+        echo "this room (#{room.id}) has been added to the boundary list"
+      else
+        echo 'error: current room is unknown'
+      end
+    end
+
+    def remove_boundary(script)
+      if script.vars[2]
+        script.vars[2..].each do |var|
+          if var =~ /\A[0-9]+\z/
+            if Settings.boundary.delete(var)
+              echo "room #{var} has been removed from the boundary list"
+            else
+              echo "room #{var} was not found in the boundary list"
+            end
+          else
+            echo "ignoring #{var}: not a room id"
+          end
+        end
+      elsif (room = Room.current)
+        if Settings.boundary.delete(room.id.to_s)
+          echo "this room (#{room.id}) has been removed from the boundary list"
+        else
+          echo "this room (#{room.id}) was not found in the boundary list"
+        end
+      else
+        echo 'current room is unknown'
+      end
+    end
+
+    def set_delay(script)
+      if script.vars[2] =~ /\A[0-9.]+\z/
+        Settings.delay = script.vars[2]
+        echo "movement delay is now #{Settings.delay}"
+      else
+        echo "usage: ;ewander delay <seconds>"
+      end
+    end
+
+    def show_list
+      output = "\n"
+
+      if Settings.boundary.empty?
+        output << "   boundaries: none\n"
+      else
+        output << "   boundaries:\n"
+        Settings.boundary.each do |boundary|
+          room = Room[boundary]
+          title = room&.title&.first || '(unknown room)'
+          output << "      #{boundary.to_s.rjust(5)}   #{title}\n"
+        end
+      end
+
+      output << "\n"
+      output << if Settings.targetable.empty?
+                  "   targetable npcs: none\n"
+                else
+                  "   targetable npcs: #{Settings.targetable.join(', ')}\n"
+                end
+
+      output << "\n"
+      output << if Settings.untargetable.empty?
+                  "   untargetable npcs: none\n"
+                else
+                  "   untargetable npcs: #{Settings.untargetable.join(', ')}\n"
+                end
+
+      output << "\n"
+      respond output
+    end
+
+    def clear_all
+      Settings.clear!
+      respond 'done'
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Main wander loops
+  # ---------------------------------------------------------------------------
+  module Loops
+    module_function
+
+    # Wander stopping for any hostile NPC (no name args given)
+    def wander_any_target
+      loop do
+        Movement.wander!
+        npcs = GameObj.targets
+        npcs = npcs.reject { |npc| Settings.untargetable.include?(npc.name) }
+
+        if !Claim.mine?
+          sleep Settings.delay
+        elsif npcs.any? { |npc| Settings.targetable.include?(npc.name) }
+          break
+        else
+          break if EO::Wander.target_random!(npcs, targetable: Settings.targetable, untargetable: Settings.untargetable)
+
+          sleep Settings.delay
+        end
+      end
+    end
+
+    # Wander stopping for specific named NPCs / PCs
+    def wander_named_targets(script)
+      names    = script.vars[1..]
+      pc_regex = /#{names.join('|')}/i
+
+      loop do
+        # Pre-move: check for matching PC -> break immediately
+        if GameObj.pcs.any? { |pc| pc.noun =~ pc_regex }
+          break
+        end
+
+        # Pre-move: check for matching NPC before wandering (catches spawns mid-room)
+        found_npc = EO::Wander.find(names)
+        if found_npc
+          if EO::Wander.hostile?(found_npc)
+            # Hostile NPC - only stop if we have valid claim
+            if Claim.mine?
+              EO::Wander.target!(found_npc)
+              break
+            end
+          else
+            # Non-hostile NPC (e.g. constable) - always stop, never target
+            break
+          end
+        end
+
+        Movement.wander!
+
+        # Post-move: matching PC detected -> stop
+        if GameObj.pcs.any? { |pc| pc.noun =~ pc_regex }
+          break
+        end
+
+        # Post-move: look for matching NPC
+        found_npc = EO::Wander.find(names)
+        if found_npc
+          if EO::Wander.hostile?(found_npc)
+            if Claim.mine?
+              EO::Wander.target!(found_npc)
+              break
+            else
+              sleep Settings.delay
+            end
+          else
+            break
+          end
+        else
+          sleep Settings.delay
+        end
+      end
+    end
+  end
+end
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+EWander::CLI.run(script)

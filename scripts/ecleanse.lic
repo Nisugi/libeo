@@ -1,0 +1,1139 @@
+=begin
+   A script that removes status affects and combines several previous separate scripts. Will cover dispels, disarmed, and other status affects.
+   Configuration can be accessed via ;ecleanse setup
+        author: Deysh
+  contributors: Tysong
+          game: Gemstone
+          tags: dispel, unpoison, undisease, disarmed, effects
+      required: Lich >= 5.22.0
+       version: 2.5.0
+
+  Improvements:
+  v2.5.0  (2026-11-12)
+    - the cures, the room hazards, the disarm search and list, and the hive traps,
+      itchy curse and vat come from libeo (EO::Cleanse); needs libeo 0.2.0
+    - the disarm, trap, curse and infection lines are Lich's own (Combat::Messages),
+      still matched ahead of other scripts so the hands are read at the moment of a disarm
+    - whether wounds allow a cast is Lich's (Injured); Spell Cleave and Spell Thieve are
+      used only when Lich says they are available
+    - a weapon back in hand by bonding no longer calls fill hands, since nothing was put away
+    - fix: two afflictions at once (poisoned and stunned, say) are both seen to; one used to hide the other
+    - fix: Wizard's Shield is only cast when known
+    - the 709 check for tentacles and other appendages goes by the creature's noun
+    - fix: telekinetic recovery and the Sanctum clench give up after ten tries
+  v2.4.0  (2026-11-09)
+    - ;ecleanse setup is now a Lich WebUI window instead of GTK, with the same options; Save & Close saves, Cancel or closing the window discards
+    - the stun maneuver options (Stance1, Stance2, Flee, Hide) still allow only one at a time; ticking one now unticks the others in the window
+    - fix: ;ecleanse list stopped with an error after the settings
+  v2.3.7  (2026-11-06)
+    - finding a different lost weapon no longer ends the search for the one just disarmed
+    - keeps a list of up to 20 unrecovered disarms that survives a death or restart; see it with ;ecleanse last disarm
+    - added ;ecleanse disarmrecover to go back for the most recent unrecovered disarm
+    - stops searching right away when too injured to search, then puts your other weapon back in hand
+    - forgets saved disarms for a room once the game says there is nothing to recover there
+    - disarm detection now runs ahead of other scripts' text handling, so disarms are less likely to be missed
+    - now requires Lich 5.22.0 or newer
+  v2.3.6  (2026-09-07)
+    - fix use proper Feat.available?('escapeartist', min_rank: 5) for it's usage instead of having to scrape FEAT output
+  v2.3.5  (2026-09-01)
+    - on recover attempts, always attempt to go to room_id between attempts incase somehow moved away from room (group movement?)
+  v2.3.4  (2026-08-18)
+    - fixed a case where the script could wrongly think a disarmed weapon
+      was already back in hand (if another script, like eloot, briefly put
+      something else in that hand right after the disarm) and skip trying
+      to recover it at all
+  v2.3.3  (2026-08-18)
+    - fixed a bug where recovering a disarmed weapon could occasionally
+      grab an older, previously-dropped weapon instead of the one that was
+      just knocked away
+  v2.3.2  (2026-08-17)
+    - fixed weapon recovery not working correctly when dual-wielding two
+      weapons of the same type (e.g. two handaxes)
+  v2.3.1  (2026-08-05)
+    - hive traps: bound search/disarm attempts and add a wall-clock deadline
+    - hive traps: validate room between each search, break early if moved
+    - hive traps: break early if dead or muckled
+    - hive traps: fix SEARCH start_pattern so non-rolled results terminate the loop
+    - hive traps: fix event_stack push precedence that allowed duplicate events
+  v2.3.0  (2026-06-08)
+    - add break runestones option for Onslaughts
+  v2.2.9  (2026-04-21)
+    - fix to support dispelling cloud of acidic mist
+  v2.2.8  (2026-01-03)
+    - convert stunmaneuvers to CMan.use
+  v2.2.7  (2025-11-29)
+    - bugfix for silvery blue globe not being targetable
+  v2.2.6  (2025-11-11)
+    - bugfix in weapon recovery with two-weapon combat
+    - bugfix in weapon recovery to fill hands after emptying
+  v2.2.5  (2025-10-27)
+    - bugfix in hive apparatus trap disarm regex when no trap
+  v2.2.4  (2025-10-01)
+    - disarm messaging for hisska warriors
+    - hive traps search logic updates
+    - hive_trap_room additional monitor strings
+  v2.2.3  (2025-08-24)
+    - bugfix in list output
+    - bugfix in not saving current version to settings
+    - bugfix in disarm regex for noun having spaces, aka Hammer of Kai
+  v2.2.2  (2025-07-04)
+    - bugfix in allowing berserk when webbed to actually work
+  v2.2.1  (2025-06-21)
+    - allow dispel magic and dispel webs to be toggled if Spell Cleave or Spell Thieve known.
+  v2.2.0  (2025-04-23)
+    - add support for Covert Arts: Escape Artist
+    - determine whether web/globe/cloud is targetable to avoid dispelling player versions
+    - track web/globe/cloud ids to not retry casting again via CappedCollection
+    - remove spell cleave/thieve from bound/web removal, added to cloud/web/globe avoidance
+    - bugfix for hive trap/apparatus to not search unless actual room detected for them
+    - bugfix add Red Forest fog to invalid cloud check
+    - bugfix in telekinetic disarm xml matching
+  v2.1.1  (2025-04-18)
+    - fix for Moonsedge bind not triggering properly in XML
+    - add Paladin 1635 beseech support in remove_stun and remove_web_bound
+  v2.1.0  (2025-03-16)
+    - added Hive traps
+    - added kiramon weapon-webbing
+    - added kiramon disarm recovery
+    - added bony protrusion disarm recovery
+    - added itchy curse support
+  v2.0.4  (2025-03-16)
+    - bugfix for cloud dispel against gems with cloud in name
+  v2.0.3  (2025-03-13)
+    - bugfix in Char.percent_stance
+  v2.0.2  (2025-03-12)
+    - bugfix Ecleanse.data variable names
+    - fix Lich5 API calls to non-deprecated calls
+    - removed version change announcement
+    - bugfix for cloud dispel against Wyrm and Sybil
+  v2.0.1  (2025-03-12)
+    - bugfix for stunman hide/flee/stand to not repeat if no longer stunned
+  v2.0.0  (2025-03-09)
+    - Lich version now required to be >= 5.8.0
+    - update UI to use yaml to save settings
+    - removed custom issue_command method for Lich method
+    - bugfix for stun maneuvers
+  v1.1.5  (2025-03-08)
+    - bugfix to prevent constant stunman hide usage when stunned and successful hide
+  v1.1.4  (2025-02-25)
+    - bugfix to use UID for SOS vat cleansing
+  v1.1.3  (2024-09-24)
+    - bugfix for Unholy Quickening not breaking out of routine
+  v1.1.2  (2024-09-11)
+    - more Wall of Thorns bugfix
+  v1.1.1  (2024-09-03)
+    - bugfix to include Wall of Thorns poison checking
+  v1.1.0  (2024-08-18)
+    - refactor of the queue process to improve disarm response
+    - added help section
+    - updated issue_command method to mirror Lich
+  v1.0.19 (2024-08-06)
+    - add chaotic spatial anomaly to dispelable items (found in HW by gigas disciples)
+  v1.0.18 (2024-08-04)
+    - fix disarm not waiting for bonded weapon
+  v1.0.17 (2024-05-01)
+    - fix for Char.level -> Stats.level
+    - fix for Char.prof -> Stats.prof
+  v1.0.16 (2023-11-24)
+    - bugfix for stun recover - check to make sure not in a belly or innards
+    - added check for silvery blue globe and spiraling ghostly rift in Moonsedge
+    - added check for disarm maneuver in Moonsedge and Sanctum
+    - added check for Sanctum disease needing the vat
+=end
+=begin
+  v1.0.15 (2023-08-23)
+    - Bugfix for cman retreat if current target != creature that caused grounded debuff
+  v1.0.14 (2023-04-13)
+    - Bugfix for disarm recovery
+  v1.0.13 (2023-04-06)
+    - Bugfix for regex comparison of an integer in Ruby 3.2+, force convert .to_s
+  v1.0.12 (2023-03-27)
+    - added standing check for "channel open" casting
+  v1.0.11 (2023-03-11)
+    - added multiple searches for recover item
+  v1.0.10 (2023-03-07)
+    - removed 906 from web dispell
+    - added Powersink to dispell debuffs
+  v1.0.9 (2023-02-12)
+    - added wound eval for spell casting
+    - added a wait for spirit servants in disarm recovery
+    - add some error checking to disarm recovery
+  v1.0.8 (2023-02-10)
+    - bug fix for incorrect method name during spirit servant recovery
+  v1.0.7 (2023-02-07)
+    - bug fix for web check to avoid custom disks
+  v1.0.6 (2023-01-31)
+    - bug fix for magical_grounded method if either option is checked
+  v1.0.5 (2023-01-31)
+    - bug fix for weapon disarm section
+  v1.0.4 (2023-01-24)
+    - bug fix in remove stuff for barkskin check
+    - update 1011 casting so it doesn't repeat
+    - added support for sigil of determination
+  v1.0.3 (2023-01-23)
+    - bug fix in recover weapon
+  v1.0.2 (2023-01-22)
+    - fixed regex for disarmed to not mistake hurled weapons
+  v1.0.1 (2023-01-21)
+    - add check for CMan.known?("Retreat") and stamina check for grounded debuff.
+    - moved magical/grounded debuffs into separate method to only pause scripts if necessary
+    - add Mindwipe and Pious Trial to dispellable debuffs
+  v1.0.0 (2023-01-20)
+    - Initial release
+=end
+
+# Check version of Lich for compatibility
+lich_gem_requires = '5.22.0'
+
+if Gem::Version.new(LICH_VERSION) < Gem::Version.new(lich_gem_requires)
+  if $frontend == 'stormfront' || $frontend == 'profanity'
+    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run." + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "Please update to a newer version." + "\<\/preset\>"
+    _respond ""
+    _respond "\<preset id=\"thought\"\>" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}" + "\<\/preset\>"
+    _respond "\<preset id=\"thought\"\>" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation" + "\<\/preset\>"
+    _respond "\<preset id=\"speech\"\>" + "########################################" + "\<\/preset\>"
+  else
+    _respond "##" + "########################################"
+    _respond ">" + "Script:#{script.name} now requires a newer version of Lich(#{lich_gem_requires}+) to run."
+    _respond ">" + "Please update to a newer version."
+    _respond ">" + ""
+    _respond ">" + "Currently Running Lich Version: #{Gem::Version.new(LICH_VERSION)}"
+    _respond ">" + "For help updating visit: https://gswiki.play.net/Lich_(software)/Installation"
+    _respond "##" + "########################################"
+  end
+  exit
+end
+
+Script.loadlib('libeo') unless defined?(::EO::Cleanse)
+EO.require('0.2.0')
+
+require 'yaml'
+require 'securerandom'
+require 'terminal-table'
+
+# Data Class
+module Ecleanse
+  class Data
+    attr_accessor :settings, :policy, :did_something, :event_stack, :cloud, :globe, :web, :runestone,
+                  :recover_stuff, :recover_stuff_seq, :creature, :bad_targets, :hive_trap_room
+
+    def initialize(settings)
+      @settings = settings
+      @policy = EO::Cleanse::Policy.new(**settings.transform_keys(&:to_sym))
+      @did_something = false
+      @event_stack = []
+      @bad_targets = EO::Cleanse::BadTargets.new
+
+      @settings[:script_list] = @settings[:stop_scripts].split(",").map(&:strip)
+      @settings[:script_list] << "go2" unless @settings[:script_list].include?("go2")
+
+      # action variables
+      @cloud = nil
+      @globe = nil
+      @runestone = nil
+      @web = nil
+
+      # hook_variables
+      @recover_stuff = {}
+      @recover_stuff_seq = 0
+      @creature = nil
+      @hive_trap_room = nil
+    end
+  end
+end
+
+# UI Setup
+module Ecleanse
+  # ;ecleanse setup: a Lich WebUI settings form with the same options as the
+  # old GTK window. Save & Close writes the settings file if anything changed;
+  # Cancel or closing the window discards. The class also backs
+  # ;ecleanse list, which works without the WebUI.
+  class Setup
+    attr_accessor :settings
+
+    # Lich keeps this class between runs in a session; start each run clean.
+    constants(false).each { |name| remove_const(name) }
+
+    PAGE_ID = 'ecleanse-setup'
+    # Stun maneuvers: only one of these may be on at a time.
+    STUN_EXCLUSIVE = %i[use_stance1 use_stance2 use_flee use_hide].freeze
+
+    # Checkbox layout, column by column, as in the old window: [key, label, tooltip].
+    MISC_COLUMNS = [
+      [[:recover_disarmed, 'Recover Disarmed Weapons'], [:use_berserk_webbed, 'Use Berserk when Webbed'],
+       [:determination, 'Use Sigil of Determination'], [:itchy_curse, 'Manage Itchy Curse']],
+      [[:cleanse_disease, 'Cure Disease', 'Uses undisease (113)'], [:cleanse_poison, 'Cure Poison', 'Uses unpoison (114)'],
+       [:cleanse_grounded, 'Cleanse Grounded', 'Attempts to clear Rooted or Pressed'],
+       [:cleanse_magical, 'Cleanse Magical', 'Attempts to cleanse - Confusion, Vertigo, Sounds, or Thought Lash using spells 417, 119, or 1218 if known']],
+      [[:dispel_clouds, 'Dispel Clouds'], [:dispel_magic, 'Dispel Magic'], [:avoid_webs, 'Dispel Webs']],
+      [[:hive_traps_apparatus, 'Disarm Hive Apparatus'], [:hive_traps_ground, 'Disarm Hive Ground'],
+       [:break_runestone, 'Break Runestone', 'Attacks pale hovering runestones (Onslaught)']],
+    ].freeze
+    STUN_COLUMNS = [
+      [[:use_stunned_barkskin, 'Barkskin (605)'], [:use_berserk_stunned, 'Berserk'], [:use_stunned1040, "Troubadour's Rally (1040)"]],
+      [[:use_stance1, 'Stunman Stance1'], [:use_stance2, 'Stunman Stance2'], [:use_1635, 'Divine Intervention (1635)']],
+      [[:use_flee, 'Stunman Flee'], [:use_hide, 'Stunman Hide']],
+    ].freeze
+    DISARMED_COLUMNS = [
+      [[:use_709, 'Grasp of the Grave (709)'], [:use_619, 'Mass Calm (619)'], [:use_213, 'Minor Sanctuary (213)']],
+      [[:use_1011, 'Song of Peace (1011)'], [:use_9811, 'Symbol of Sleep']],
+      [[:use_140, 'Wall of Force (140)'], [:use_919, "Wizard's Shield (919)"]],
+    ].freeze
+
+    @@categories = {
+      general: {
+        cleanse_magical: { default: false },
+        cleanse_grounded: { default: false },
+        cleanse_poison: { default: false },
+        cleanse_disease: { default: false },
+        recover_disarmed: { default: false },
+        dispel_clouds: { default: false },
+        dispel_magic: { default: false },
+        avoid_webs: { default: false },
+        use_berserk_webbed: { default: false },
+        hive_traps_apparatus: { default: false },
+        hive_traps_ground: { default: false },
+        break_runestone: { default: false },
+        stop_scripts: { default: '' },
+        script_list: { default: [] },
+        determination: { default: false },
+        itchy_curse: { default: false },
+        safe_room: { default: '' },
+        use_stunned_barkskin: { default: false },
+        use_berserk_stunned: { default: false },
+        use_stunned1040: { default: false },
+        use_stance1: { default: false },
+        use_stance2: { default: false },
+        use_flee: { default: false },
+        use_hide: { default: false },
+        use_709: { default: false },
+        use_619: { default: false },
+        use_213: { default: false },
+        use_1011: { default: false },
+        use_9811: { default: false },
+        use_140: { default: false },
+        use_919: { default: false },
+        use_1635: { default: false },
+        version: { default: '' },
+      }
+    }
+
+    def self.available?
+      defined?(Lich::WebUI) && Lich::WebUI.respond_to?(:presentation_enabled?) && Lich::WebUI.presentation_enabled? &&
+        defined?(Lich::WebUI::SettingsForm) ? true : false
+    end
+
+    def self.get_category(key)
+      @@categories.each { |category, data| return category unless data[key].nil? }
+      nil
+    end
+
+    def self.get_setting(key)
+      cat = Setup.get_category(key)
+      return nil if cat.nil?
+
+      @@categories[cat].each { |setting, data| return data if setting == key }
+      nil
+    end
+
+    def initialize(settings)
+      @settings = settings
+      @owner = Script.current
+
+      # Capture starting settings
+      @original_settings = Marshal.load(Marshal.dump(settings))
+
+      # Get script version
+      @settings[:version] = @version = Util.get_script_version
+
+      # set default values if they don't exist
+      @@categories.each do |_, data|
+        data.each { |key, value| @settings[key] = value[:default] if @settings[key].nil? }
+      end
+
+      # remove settings that don't exist
+      @settings.delete_if { |key, _| next Setup.get_category(key).nil? }
+    end
+
+    # Options this character cannot use: greyed out and switched off, as in
+    # the old window.
+    def unavailable
+      @unavailable ||= begin
+        dispel = [417, 1218, 119].any? { |s| Spell[s].known? }
+        cleave = CMan.known?("Spell Cleave") || CMan.known?("Spell Thieve")
+        stun = CMan.stun_maneuvers
+        {
+          cleanse_disease: !Spell[113].known?,
+          cleanse_poison: !Spell[114].known?,
+          use_berserk_webbed: !CMan.known?("Berserk"),
+          determination: !Spell["Sigil of Determination"].known?,
+          cleanse_grounded: !(CMan.known?("Retreat") || Feat.known?("escapeartist")),
+          cleanse_magical: !dispel,
+          dispel_clouds: !dispel,
+          dispel_magic: !dispel && !cleave,
+          avoid_webs: ![209, 417, 1218, 119].any? { |s| Spell[s].known? } && !Feat.known?("escapeartist") && !cleave,
+          use_stunned_barkskin: !Spell[605].known?,
+          use_berserk_stunned: !CMan.known?("Berserk"),
+          use_stunned1040: !Spell[1040].known?,
+          use_stance1: stun < 2,
+          use_stance2: stun < 4,
+          use_flee: stun < 5,
+          use_hide: stun < 5,
+          use_709: !Spell[709].known?,
+          use_619: !Spell[619].known?,
+          use_213: !Spell[213].known?,
+          use_1011: !Spell[1011].known?,
+          use_9811: !Spell[9811].known?,
+          use_140: !Spell[140].known?,
+          use_919: !Spell[919].known?,
+          use_1635: !Spell[1635].known?,
+        }.select { |_, off| off }
+      end
+    end
+
+    def disabled?(key) = unavailable.key?(key)
+
+    def start
+      unavailable.each_key { |key| @settings[key] = false }
+      setup = self
+      form = nil
+      form = Lich::WebUI::SettingsForm.new(
+        owner: @owner, id: PAGE_ID, title: "Ecleanse Setup v#{@version}", values: @settings, fields: fields,
+        props: { size: [800, 500], viewport: true },
+        normalize: ->(draft) { setup.normalize(draft) },
+        layout: ->(ui, field, save) { setup.render(ui, field, save, -> { form.close }) }
+      )
+      result = form.show.wait
+      if result.nil?
+        respond
+        Lich::Messaging.msg('plain', " Ecleanse UI closed WITHOUT saving any changes")
+        Lich::Messaging.msg('plain', " Use the Save & Close button to save changes")
+        respond
+      elsif result == @original_settings
+        respond
+        Lich::Messaging.msg('plain', " Nothing to save. No changes were made.")
+        respond
+      else
+        filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ecleanse.yaml')
+        File.write(filename, result.to_yaml)
+        respond
+        Lich::Messaging.msg('plain', " Settings saved to file: #{filename}.")
+        respond
+      end
+      result
+    end
+
+    # One form field per checkbox and text box; stun maneuvers are exclusive.
+    def fields
+      checks = (MISC_COLUMNS + STUN_COLUMNS + DISARMED_COLUMNS).flatten(1).map do |key, label, tip|
+        field = { key: key, type: :checkbox, label: label, disabled: disabled?(key) }
+        field[:tooltip] = tip if tip
+        field[:exclusive] = :stun if STUN_EXCLUSIVE.include?(key)
+        field
+      end
+      checks + [
+        { key: :stop_scripts, type: :text_input, placeholder: 'list of scripts to pause eg - bigshot, eloot, go2' },
+        { key: :safe_room, type: :text_input, placeholder: 'room number or name',
+          tooltip: 'If left empty will run to nearest town or sanctuary.' },
+      ]
+    end
+
+    # Strips text, keeps unusable options off and at most one stun maneuver on.
+    def normalize(draft)
+      %i[stop_scripts safe_room].each { |key| draft[key] = draft[key].to_s.strip }
+      (MISC_COLUMNS + STUN_COLUMNS + DISARMED_COLUMNS).flatten(1).each do |key, _|
+        draft[key] = draft[key] && !disabled?(key) ? true : false
+      end
+      first = STUN_EXCLUSIVE.find { |key| draft[key] }
+      (STUN_EXCLUSIVE - [first]).each { |key| draft[key] = false }
+      draft
+    end
+
+    # A group of checkbox columns; +columns+ is a list of [key, label, tip] lists.
+    def check_columns(ui, field, key, columns)
+      ui.columns(key: key, count: columns.size, gap: 12, row_align: :start) do
+        columns.each_with_index do |items, i|
+          ui.stack(slot: i.to_s, key: "#{key}-#{i}", gap: 4) do
+            items.each { |k, _| field.call(ui, k) }
+          end
+        end
+      end
+    end
+
+    def render(ui, field, save, cancel)
+      setup = self
+      ui.stack(key: 'ecleanse', gap: 6, margin: 8, fill: true) do
+        ui.scroll(key: 'body', fill: true) do
+          ui.stack(key: 'panels', gap: 8) do
+            ui.group(key: 'scripts', label: 'Scripts') do
+              ui.grid(key: 'scripts-row', cols: 2, homogeneous: false, expand_columns: [2], column_gap: 10) do
+                ui.text(key: 'l-stop', content: 'Scripts to Pause')
+                field.call(ui, :stop_scripts)
+              end
+            end
+            ui.group(key: 'misc', label: 'Misc') do
+              ui.stack(key: 'misc-body', gap: 6) do
+                setup.check_columns(ui, field, 'misc-cols', MISC_COLUMNS)
+                ui.grid(key: 'safe-row', cols: 2, homogeneous: false, expand_columns: [2], column_gap: 10) do
+                  ui.text(key: 'l-safe', content: 'Itchy Curse Safe Room')
+                  field.call(ui, :safe_room)
+                end
+              end
+            end
+            ui.group(key: 'stun', label: 'Stun Recovery') do
+              setup.check_columns(ui, field, 'stun-cols', STUN_COLUMNS)
+            end
+            ui.group(key: 'disarmed', label: 'Cast in Room when Disarmed') do
+              setup.check_columns(ui, field, 'disarmed-cols', DISARMED_COLUMNS)
+            end
+          end
+        end
+        ui.columns(key: 'footer', count: 3, weights: [5, 1, 1], compact: true, row_align: :center, gap: 6) do
+          ui.text(slot: '0', key: 'footer-text', emphasis: :subtle, content: 'Cancel or closing the window discards changes.')
+          ui.button(slot: '1', key: 'cancel', label: 'Cancel', on: { activate: ->(_ev) { cancel.call } })
+          save.call(ui, slot: '2', variant: :primary)
+        end
+      end
+    end
+
+    def list(cat_to_list: 'all')
+      indent_size = 2
+      print_array =
+        proc do |key, value, indent|
+          _respond("#{' ' * indent_size * indent.to_i}#{key}:")
+          value.sort!.each { |entry| _respond("#{' ' * indent_size * (indent.to_i + 1)}#{value.index(entry) + 1}. #{entry}") }
+        end
+
+      print_value = proc { |key, value, indent| _respond("#{' ' * indent_size * indent.to_i}#{key}: #{value}") }
+
+      categories = cat_to_list == 'all' ? @@categories.keys.map(&:to_s) : [cat_to_list]
+      if $frontend == 'stormfront'
+        output = "<output class=\"mono\"/>\n"
+      else
+        output = String.new
+      end
+      categories.each do |opt|
+        _respond("#{output}") if !output.empty?
+        _respond("#{monsterbold_start}= #{opt.capitalize} =#{monsterbold_end}\n")
+        @@categories[opt.to_sym].each do |id, _|
+          value = @settings[id]
+          value.class == Array ? print_array.call(id, value, 1) : print_value.call(id, value, 1)
+        end
+      end
+      if $frontend == 'stormfront'
+        output = "<output class=\"\"/>\n"
+        _respond("#{output}")
+      end
+    end
+
+    def self.update_setting(key, value)
+      setting = Setup.get_setting(key)
+      echo "** Setting #{key.inspect} does not exist" if setting.nil?
+      action = nil
+
+      if value =~ /^([+-])(.*)$/
+        action = Regexp.last_match(1)
+        value = Regexp.last_match(2).strip.downcase
+      end
+
+      if value == 'reset'
+        @settings.delete(key)
+        echo " Reset #{key}"
+      elsif @settings[key].class == Array
+        if value =~ /\d/ && @settings[key][value.to_i]
+          @settings[key].delete_at(value.to_i)
+        else
+          @settings[key].delete(value)
+        end
+
+        if action == '-'
+          echo " #{value.inspect} removed from #{key.inspect}"
+        else
+          @settings[key].push(value)
+          echo " #{value.inspect} added to #{key.inspect}"
+        end
+
+        echo " #{key.inspect} is now #{@settings[key].join(', ').inspect}"
+      else
+        if @settings[key].class == FalseClass || @settings[key].class == TrueClass
+          value = value =~ /^true|1|yes|on/ ? true : false
+        elsif @settings[key].class == Integer
+          value = value.to_i
+        end
+
+        echo "#{key.inspect} has been set to #{value.inspect}"
+        @settings[key] = value
+      end
+    end
+  end
+end
+
+# Load/Save profiles
+module Ecleanse
+  @@data ||= nil
+
+  def self.data
+    @@data
+  end
+
+  def self.load(settings)
+    @@data = Data.new(settings)
+  end
+
+  def self.load_defaults
+    {
+      :cleanse_magical      => CharSettings['cleanse_magical'] || false,
+      :cleanse_grounded     => CharSettings['cleanse_grounded'] || false,
+      :cleanse_poison       => CharSettings['cleanse_poison'] || false,
+      :cleanse_disease      => CharSettings['cleanse_disease'] || false,
+      :recover_disarmed     => CharSettings['recover_disarmed'] || false,
+      :dispel_clouds        => false,
+      :dispel_magic         => false,
+      :avoid_webs           => CharSettings['avoid_webs'] || false,
+      :break_runestone      => CharSettings['break_runestone'] || false,
+      :use_berserk_webbed   => false,
+      :stop_scripts         => CharSettings['stop_scripts'] || '',
+      :script_list          => [],
+      :determination        => CharSettings['determination'] || false,
+      :use_stunned_barkskin => false,
+      :use_berserk_stunned  => false,
+      :use_stunned1040      => false,
+      :use_stance1          => false,
+      :use_stance2          => false,
+      :use_flee             => false,
+      :use_hide             => false,
+      :use_709              => false,
+      :use_619              => false,
+      :use_213              => false,
+      :use_1011             => false,
+      :use_9811             => false,
+      :use_140              => false,
+      :use_919              => false,
+      :version              => '',
+    }
+  end
+
+  def self.load_profile
+    filename = File.join(DATA_DIR, XMLData.game, Char.name, 'ecleanse.yaml')
+
+    if File.exist?(filename)
+      settings_hash = YAML.load_file(filename)
+    else
+      settings_hash = Ecleanse.load_defaults
+    end
+
+    return settings_hash
+  end
+end
+
+# Main Script Methods. The cures, the hazards, the disarm search and the
+# traps are libeo's (EO::Cleanse); each action here decides whether to
+# act, pauses the other scripts, and says what happened.
+module Ecleanse
+  module Action
+    def self.settings = Ecleanse.data.settings
+    def self.policy = Ecleanse.data.policy
+    def self.sigil = Ecleanse.data.settings[:determination]
+
+    def self.avoid_webs
+      return unless settings[:avoid_webs]
+
+      Action.hazard(Ecleanse.data.web, :web)
+      Ecleanse.data.web = nil
+    end
+
+    def self.avoid_globe
+      return unless settings[:dispel_magic]
+
+      Action.hazard(Ecleanse.data.globe, :globe)
+      Ecleanse.data.globe = nil
+    end
+
+    def self.dispel_cloud
+      return unless settings[:dispel_magic]
+
+      Action.hazard(Ecleanse.data.cloud, :cloud)
+      Ecleanse.data.cloud = nil
+    end
+
+    # TARGET the hazard before pausing anything: a player's own is refused,
+    # and is not tried again.
+    def self.hazard(obj, kind)
+      return if obj.nil?
+      return unless EO::Cleanse::Hazards.clearable?(obj, kind, determination: sigil)
+
+      unless EO::Cleanse::Hazards.aim(obj)
+        Ecleanse.data.bad_targets << obj.id
+        return
+      end
+
+      System.scripts_pause
+      EO::Cleanse::Hazards.clear(obj, kind, determination: sigil, aimed: true)
+    end
+
+    def self.avoid_runestone
+      return unless settings[:break_runestone]
+
+      stone = Ecleanse.data.runestone
+      Ecleanse.data.runestone = nil
+      return if stone.nil?
+
+      unless EO::Cleanse::Hazards.target(stone)
+        Ecleanse.data.bad_targets << stone.id
+        return
+      end
+
+      System.scripts_pause
+      EO::Cleanse::Hazards.break_runestone(stone, aimed: true)
+    end
+
+    def self.determination
+      return unless settings[:determination]
+      return unless EO::Cleanse.sigil?
+
+      System.scripts_pause
+      EO::Cleanse.cast_sigil
+    end
+
+    def self.remove_poison
+      return unless settings[:cleanse_poison]
+      return unless EO::Cleanse::Afflictions.curable?(:poison, determination: sigil)
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.cure(:poison, determination: sigil)
+    end
+
+    def self.remove_disease
+      return unless settings[:cleanse_disease]
+      return unless EO::Cleanse::Afflictions.curable?(:disease, determination: sigil)
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.cure(:disease, determination: sigil)
+    end
+
+    def self.remove_magical
+      return unless settings[:cleanse_magical]
+      return unless EO::Cleanse::Afflictions.curable?(:dispel, determination: sigil)
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.dispel(determination: sigil)
+    end
+
+    def self.remove_grounded
+      return unless settings[:cleanse_grounded]
+      return unless EO::Cleanse::Afflictions.ungroundable?
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.unground
+    end
+
+    def self.remove_stun
+      means = EO::Cleanse::Afflictions.stun_means(policy)
+      return if means.nil?
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.unstun(means)
+    end
+
+    def self.remove_web_bound
+      return unless settings[:avoid_webs] || settings[:use_berserk_webbed]
+
+      means = EO::Cleanse::Afflictions.web_means(policy)
+      return if means.nil?
+
+      System.scripts_pause
+      EO::Cleanse::Afflictions.unweb(means)
+    end
+
+    # Make the room safer, keep whatever another script slipped in paused,
+    # and stand defensive: the start of every recovery.
+    def self.brace
+      EO::Cleanse::Afflictions.settle_room(policy)
+      System.scripts_pause
+      Lich::Gemstone::Stance.change('defensive')
+    end
+
+    # Files a disarm under recover_stuff with the ids in hand right now, so
+    # the weapon that comes back is one that was not already there. Returns
+    # its key, or nil with recovery off. track: false for what RECOVER ITEM
+    # cannot get back later (webbing, telekinetic); the rest go on the saved
+    # list now, so being stopped or dying first cannot lose them.
+    def self.record_disarm(noun, track: true)
+      return nil unless settings[:recover_disarmed]
+
+      disarm_id = track ? EO::Cleanse::Disarms.add(noun) : nil
+      Action.queue_recover(Room.current, noun, disarm_id)
+    end
+
+    def self.queue_recover(room, noun, disarm_id)
+      key = Ecleanse.data.recover_stuff_seq
+      Ecleanse.data.recover_stuff_seq += 1
+      Ecleanse.data.recover_stuff[key] = { room: room, noun: noun, known_ids: EO::Cleanse::Disarms.hands, disarm_id: disarm_id }
+      key
+    end
+
+    def self.recover(key)
+      details = Ecleanse.data.recover_stuff.delete(key)
+      return if details.nil? # already handled or never recorded (e.g. feature was off)
+      return unless EO::Cleanse::Disarms.tracked?(details[:disarm_id]) # already turned up while searching for another disarm
+
+      System.scripts_pause
+
+      known_ids = details[:known_ids]
+      item = details[:noun]
+      disarm_id = details[:disarm_id]
+      room_id = details[:room]&.id
+
+      Util.msg("yellow", " ########## DISARMED!!! ##########")
+      Util.msg("yellow", " ## Room#: #{room_id}")
+      Util.msg("yellow", " ## Room Name: #{Array(details[:room]&.title).first}")
+      Util.msg("yellow", " ## Looking for: #{item}")
+      Util.msg("yellow", " ########## DISARMED!!! ##########")
+      EO.go2(room_id) if room_id
+
+      stops = EO::Cleanse::Disarms.prepare(policy)
+
+      if EO::Cleanse::Disarms.servant
+        lines = EO::Cleanse.command("sense", /You open your soul to the lesser/, silent: true, quiet: true)
+        fput "stop 213" if lines.any? { |l| l =~ /An obvious presence of peace saturates the area and a feeling of safety overwhelms you/ }
+        EO::Cleanse::Disarms.remove(disarm_id)
+        return
+      end
+
+      Action.brace
+
+      # Only a bonded weapon can be back before RECOVER ITEM is sent; for
+      # anything else a weapon in hand now is another script's doing.
+      stashes = 0
+      if EO::Cleanse::Disarms.await_bonded(known_ids, item)
+        EO::Cleanse::Disarms.remove(disarm_id)
+      else
+        search = EO::Cleanse::Disarms.search(item, known_ids: known_ids, room_id: room_id, id: disarm_id) do |event, found|
+          case event
+          when :other then Util.msg("yellow", " Recovered #{found} while looking for #{item}. Still searching.")
+          when :inferred then Util.msg("yellow", " No recovery message seen, but hand state changed - treating #{item} as recovered.")
+          end
+        end
+        case search.outcome
+        when :cannot_search
+          Util.msg("yellow", " Unable to search. #{item} is in room #{room_id}. Use #{$lich_char}#{Script.current.name} disarmrecover to try again.")
+        when :nothing_here
+          Util.msg("yellow", " Nothing to recover in room #{room_id}. No longer tracking disarms there.")
+        end
+        stashes = search.stashes
+        EO.settle
+      end
+
+      EO::Cleanse::Disarms.restore_hands(stashes)
+      EO::Cleanse::Disarms.stop(stops)
+    end
+
+    def self.recover_weapon_webbing(key)
+      details = Ecleanse.data.recover_stuff.delete(key)
+      return if details.nil?
+
+      System.scripts_pause
+      stops = EO::Cleanse::Disarms.prepare(policy)
+      Action.brace
+      EO::Cleanse::Disarms.pry(details[:noun])
+      EO.settle
+      ReadyList.check(silent: true, quiet: true) unless ReadyList.valid?
+      EO::Cleanse::Disarms.stop(stops)
+    end
+
+    def self.telekinetic_recover(key)
+      # Telekinetic Disarm is cast in Moonsedge - Savant spell 1406
+      details = Ecleanse.data.recover_stuff.delete(key)
+      return if details.nil?
+
+      System.scripts_pause
+      Action.brace
+      EO::Cleanse::Disarms.telekinetic(details[:noun], details[:known_ids])
+      EO.settle
+      ReadyList.check(silent: true, quiet: true) unless ReadyList.valid?
+    end
+
+    def self.sanctum_recover
+      # Unholy Quickening by Lithe Veiled Sentinels in the Sanctum
+      return unless settings[:recover_disarmed]
+
+      System.scripts_pause
+      EO.settle
+      Action.brace
+      EO::Cleanse::Disarms.clench(Ecleanse.data.creature)
+    end
+
+    def self.use_vat
+      # A bite/spit maneuver from a Shambling Lurk in the Sanctum
+      vat_room = EO::Cleanse::Traps.vat_room
+      if vat_room.nil?
+        Util.msg("yellow", " The infected wound is cleaned at the Sanctum's vat, which this map does not know.")
+        return
+      end
+
+      System.scripts_pause
+      current_room = Room.current.id
+      EO.go2(vat_room)
+      EO::Cleanse::Traps.clean_vat
+      EO.go2(current_room)
+    end
+
+    def self.hive_traps_apparatus = Action.hive_trap(:hive_traps_apparatus)
+
+    def self.hive_traps_ground = Action.hive_trap(:hive_traps_ground)
+
+    # SEARCH out the trap where it went off; disarm an apparatus once found.
+    # The room is forgotten unless the search was cut short by something
+    # that clears by itself, and the trap announces itself again.
+    def self.hive_trap(kind)
+      return unless settings[kind]
+      return if Script.running?('go2')
+
+      room_id = Ecleanse.data.hive_trap_room
+      return unless room_id && Room.current.id == room_id
+
+      System.scripts_pause
+      outcome = EO::Cleanse::Traps.search(room_id)
+      EO::Cleanse::Traps.disarm(room_id) if outcome == :found && kind == :hive_traps_apparatus
+      Ecleanse.data.hive_trap_room = nil unless EO::Cleanse::Traps.retry?(outcome)
+      EO.settle
+    end
+
+    def self.itchy_curse
+      return unless settings[:itchy_curse]
+
+      cursed_room = Room.current.id
+      safe_place = EO::Cleanse::Traps.safe_room(settings[:safe_room])
+
+      System.scripts_pause
+      Script.kill("go2") if Script.running?("go2")
+      # the rash is waited out on the way there
+      Script.start("go2", "#{safe_place} --disable-confirm")
+      EO::Cleanse::Traps.wait_out_rash
+      EO.go2(cursed_room)
+    end
+
+    # ;ecleanse last disarm - lists what is still lost, newest first.
+    def self.disarm_report
+      disarms = EO::Cleanse::Disarms.list
+      Util.msg("yellow", " No unrecovered disarms.") if disarms.empty?
+      disarms.reverse_each do |entry|
+        Util.msg("yellow", " #{entry[:item]} - Room #{entry[:room]} #{entry[:title]} - #{(Time.now.to_i - entry[:at]) / 60} min ago")
+      end
+    end
+
+    # ;ecleanse disarmrecover - goes back for the most recent unrecovered disarm.
+    def self.disarm_recover
+      entry = EO::Cleanse::Disarms.list.last
+      if entry.nil?
+        Util.msg("yellow", " No unrecovered disarms to go back for.")
+        return
+      end
+      if dead?
+        Util.msg("yellow", " Can't go back for #{entry[:item]} while dead. It is in room #{entry[:room]}.")
+        return
+      end
+
+      # Room[nil] is a fuzzy title search rather than a miss, and an unmapped
+      # disarm room is saved with no id.
+      room = entry[:room].nil? ? nil : Room[entry[:room]]
+      if room.nil?
+        Util.msg("yellow", " Can't find the room #{entry[:item]} was lost in (#{entry[:title]}) on the map.")
+        return
+      end
+
+      Action.recover(Action.queue_recover(room, entry[:item], entry[:id]))
+    end
+  end
+
+  module System
+    def self.deadmans_switch
+      # Kill script if dead
+      Thread.new { loop { Script.self.kill if dead?; sleep(5); } }
+    end
+
+    def self.scripts_pause
+      Ecleanse.data.settings[:script_list].each { |script| Script.pause(script) if Script.running?(script) }
+      Ecleanse.data.did_something = true
+    end
+
+    def self.scripts_resume
+      Ecleanse.data.settings[:script_list].each { |script| Script.unpause(script) if Script.paused?(script) }
+      Ecleanse.data.did_something = false
+    end
+
+    # A line Lich knows as a disarm, the sanctum's transformation, the
+    # infected wound, a hive trap, the itchy curse or the entangling bind,
+    # queued as work. Runs on the game thread, ahead of other scripts' text
+    # handling, so the hands are read before anyone moves something into
+    # them; must not raise, or Lich drops the hook.
+    def self.heard(event, data)
+      queue = Ecleanse.data.event_stack
+      case event
+      when :disarm_seen
+        key = Action.record_disarm(data[:noun], track: data[:kind] == :recover)
+        queue << { event: data[:kind], key: key } unless key.nil?
+      when :sanctum_transform
+        Ecleanse.data.creature = data[:noun]
+        queue << :sanctum_recover unless queue.include?(:sanctum_recover)
+      when :infected_wound
+        queue << :use_vat unless queue.include?(:use_vat)
+      when :hive_trap
+        Ecleanse.data.hive_trap_room = Room.current.id
+        kind = data[:kind] == :ground ? :hive_traps_ground : :hive_traps_apparatus
+        queue << kind unless queue.include?(kind)
+      when :itchy_curse
+        queue << :itchy_curse unless queue.include?(:itchy_curse)
+      when :entangled
+        queue << :remove_web_bound unless queue.include?(:remove_web_bound)
+      end
+    end
+
+    def self.set_hooks
+      # Lich's own message definitions, matched here in step with the line
+      # rather than on its event thread.
+      messages = Lich::Gemstone::Combat::Messages
+      ecleanse_status = proc { |server|
+        begin
+          families = messages.table.by_name.values_at(:disarm, :hazard).compact
+          messages.scan(server, families: families).each { |event, data| System.heard(event, data) }
+        rescue StandardError => e
+          Lich.log("ecleanse: #{e.class}: #{e.message}")
+        end
+        server
+      }
+      DownstreamHook.add('ecleanse_status', ecleanse_status, priority: 100)
+
+      # Lich won't start a second copy of a running script, so while this one
+      # is up it has to pick these commands off before Lich sees them. The work
+      # is queued rather than done here because this runs on the client's thread.
+      disarm_command = /^(?:<c>)?#{$lich_char_regex}(?:force\s+)?#{Regexp.escape(Script.current.name)}\s+(disarmrecover|last\s+disarm)\s*$/i
+      ecleanse_command = proc { |client|
+        if client =~ disarm_command
+          event = Regexp.last_match(1).casecmp?('disarmrecover') ? :disarm_recover : :disarm_report
+          Ecleanse.data.event_stack << event unless Ecleanse.data.event_stack.include?(event)
+          nil
+        else
+          client
+        end
+      }
+      UpstreamHook.add('ecleanse_command', ecleanse_command)
+
+      before_dying {
+        DownstreamHook.remove('ecleanse_status')
+        UpstreamHook.remove('ecleanse_command')
+        Ecleanse.data.settings[:script_list].each { |script| Script.unpause(script) if Script.paused?(script) }
+      }
+    end
+  end
+
+  module Util
+    def self.get_script_version
+      data = Script.list.find { |x| x.name == Script.current.name }.inspect
+      return data[/version: (\d+\.\d+\.\d+)/i, 1]
+    end
+
+    def self.help
+      EO.help([
+                ['setup', 'Setup window'],
+                ['load', 'Reloads all settings'],
+                ['list', 'Lists all settings'],
+                ['last disarm', "Lists disarms not yet recovered (up to #{EO::Cleanse::Disarms::MAX})"],
+                ['disarmrecover', 'Goes back for the most recent disarm not yet recovered'],
+              ])
+    end
+
+    def self.msg(type = info, text)
+      # color options - set type to use
+      # yellow, orange, teal, green, plain
+
+      if text.class == Hash
+        text = text.inspect.gsub("#<", "#")
+      elsif text.class == Array
+        text = text.to_s
+      elsif text.class == String
+        text = text.gsub("#<", "#")
+      end
+
+      type = type == "debug" ? "speech" : type
+
+      Lich::Messaging.msg(type, text)
+    end
+  end
+
+  def self.main_loop
+    loop do
+      while Ecleanse.data.event_stack.any?
+        current_event = Ecleanse.data.event_stack.shift
+        # recover-type events are queued as { event:, key: } so they're
+        # dispatched against the exact recover_stuff entry they belong to,
+        # rather than a bare symbol that would fall back to picking
+        # whatever's oldest in recover_stuff.
+        if current_event.is_a?(Hash)
+          Action.send(current_event[:event], current_event[:key])
+        else
+          Action.send(current_event)
+        end
+      end
+
+      bad = Ecleanse.data.bad_targets
+      Ecleanse.data.cloud = EO::Cleanse::Hazards.cloud(bad)
+      Ecleanse.data.globe = EO::Cleanse::Hazards.globe(bad)
+      Ecleanse.data.runestone = EO::Cleanse::Hazards.runestone(bad)
+      Ecleanse.data.web = EO::Cleanse::Hazards.web(bad)
+
+      # A list, not a Hash: two conditions true at once would be one key.
+      conditions = [
+        [EO::Cleanse::Afflictions.poisoned?, :remove_poison],
+        [checkdisease, :remove_disease],
+        [checkstunned, :remove_stun],
+        [checkwebbed || checkbound, :remove_web_bound],
+        [EO::Cleanse::Afflictions.grounded?, :remove_grounded],
+        [EO::Cleanse::Afflictions.magical?, :remove_magical],
+        [Ecleanse.data.cloud, :dispel_cloud],
+        [Ecleanse.data.globe, :avoid_globe],
+        [Ecleanse.data.runestone, :avoid_runestone],
+        [Ecleanse.data.web, :avoid_webs],
+        [Ecleanse.data.settings[:determination] && EO::Cleanse.sigil_wounds?, :determination]
+      ]
+
+      # Add events if conditions are met
+      conditions.each do |condition, event|
+        Ecleanse.data.event_stack << event if condition && !Ecleanse.data.event_stack.include?(event)
+      end
+
+      System.scripts_resume if Ecleanse.data.did_something
+      sleep 0.2
+    end
+  end
+
+  # A Data from an earlier version, still held this session, lacks the policy.
+  unless Ecleanse.data.respond_to?(:policy)
+    Ecleanse.load(Ecleanse.load_profile)
+  end
+
+  case Script.current.vars[0]
+  when /^setup$/i
+    Ecleanse::Setup.new(Ecleanse.data.settings).start
+    Ecleanse.load(Ecleanse.load_profile)
+  when /^disarmrecover$/i
+    before_dying { Ecleanse::System.scripts_resume }
+    Ecleanse::Action.disarm_recover
+  when /load/
+    Ecleanse.load(Ecleanse.load_profile)
+  when /list/
+    Ecleanse::Setup.new(Ecleanse.data.settings).list
+  when /last disarm/
+    Ecleanse::Action.disarm_report
+  when nil
+    Ecleanse.data.did_something = false
+    Ecleanse.data.event_stack = []
+    Ecleanse::System.deadmans_switch
+    Ecleanse::System.set_hooks
+    Ecleanse.main_loop
+  else
+    Ecleanse::Util.help
+  end
+end
