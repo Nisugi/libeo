@@ -1,0 +1,118 @@
+=begin
+  libeo: the shared library for the e-scripts (ebounty, eloot, eherbs, ecleanse, eohunter, ...).
+
+  Loaded once per session with Script.loadlib('libeo'); definitions persist after the
+  library script exits. A script names the version it was built against and the library
+  refuses a mismatch loudly:
+
+    Script.loadlib('libeo')
+    EO.require('0.2.0')
+
+  This file only loads the library. The library itself is scripts/eo/, one file per
+  concern, each readable on its own:
+
+    eo/version.rb      EO.require / EO.version, the version gate
+    eo/help.rb         EO.help, the help table every e-script prints
+    eo/travel.rb       EO.go2 / EO.at? / EO.nearest / EO.visit / EO.room_id
+    eo/command.rb      EO.command / EO.result / EO.settle: send a command, wait out roundtime
+    eo/containers.rb   EO::Containers: open a container only when it is closed, see one open,
+                       read contents the game does not refresh (ebounty's and eloot's)
+    eo/hands.rb        EO::Hands: free a hand, take, wear, put into a container, the READY list
+                       (eloot's; outcomes come back as words for the driver)
+    eo/town.rb         EO::Town: which shop to walk to and whether to go, a bounty town's region,
+                       Four Winds Isle, the trash can, the locksmith pool's worker (eloot's)
+    eo/items.rb        EO::Items: toss unless marked, phase and unphase a box, lift a curse,
+                       the disk that follows you (eloot's)
+    eo/locker.rb       EO::Locker: the character's locker rooms, getting into a booth, opening
+                       it to a container, leaving (eloot's)
+    eo/skinning.rb     EO::Skinning: who needs a blunt tool, getting ready, the skinning (eloot's)
+    eo/appraisal.rb    EO::Appraisal: ask a shop what an item is worth, and read the answer (eloot's)
+    eo/loot.rb         EO::Loot: what on the ground is loot, and which loot a policy wants (eloot's)
+    eo/selling.rb      EO::Selling: sell one item and read the shop's answer (eloot's)
+    eo/locksmith.rb    EO::Locksmith: the town locksmith (activator, open, fee) and the locksmith
+                       pool (order, tips, the give, the list, depth, the return) (eloot's)
+    eo/casting.rb      EO::Casting: the multicast count, casting at a target, making mana (wracking,
+                       Sigil of Power, Symbol of Mana, stamina), another's active spells, bread (ewaggle's)
+    eo/wander.rb       EO::Wander: a step anywhere (the Elemental Confluence too), picking a creature
+                       to stop for, learning what TARGET accepts (ewander's)
+    eo/hoard.rb        EO::Hoard: gem and reagent jars: label names, the kind check, reading a jar,
+                       the stash inventory or a locker manifest, filling and shaking (eloot's)
+    eo/cleanse/        EO::Cleanse: what the game does to a character, and the cure, from ecleanse
+      tables.rb        the debuffs, hazards and TARGET answers; Policy; the spell for a job; can we cast
+      hazards.rb       clouds, globes, webs and runestones: find, target, dispel, cleave, break
+      afflictions.rb   poison, disease, magical debuffs, roots, stuns, webs; settling a room
+      disarms.rb       the disarms not yet recovered (kept across restarts), searching, prying,
+                       the floated weapon, the Sanctum's clench, a bonded weapon, the servant
+      traps.rb         hive traps searched and disarmed, the itchy curse's safe room, the vat
+    eo/coordination/   EO::Coordination: opt-in coordination between Lich sessions (eohunter's
+                       strict group movement and safe-room hold). Loading starts nothing:
+      protocol.rb      the read-only protocol, its server and client (bounded frames)
+      discovery.rb     finding a peer session through Lich's active sessions
+      operations.rb    explicitly granted operations, settled on the owner's tick
+      parser_projection.rb  a read-only projection of Lich's parser state
+    eo/guild/          EO::Guild: the Adventurer's Guild, from ebounty
+      tables.rb        towns, NPC names and rooms, response texts, the task-type crosswalk
+      policy.rb        TaskPolicy: which tasks a character takes, and why one is handed back
+      npcs.rb          find an NPC, the taskmaster (Sailor's Grief sweep), a town's guards
+      location.rb      a task's location to a start room and boundary list, capped
+      forage.rb        herb rooms by tag and distance, herb name fixes
+      taskmaster.rb    get, turn in, remove and expedite a task; boosts, vouchers, the cooldown
+      assignments.rb   the furrier, herbalist and gem dealer visits that set a task
+      guards.rb        the guard visit that sets or completes a task, heirloom in hand
+      completion.rb    when a task is done enough to go to town; skin and gem counting
+      heirloom.rb      the heirloom search: wander, SEARCH, stow; the helper spells
+      escort_routes.rb the escort roads' special edges: climbs, sneaks, carts, the ferry
+      escort.rb        the escort: the trip from the task, fetching the client, the road,
+                       the room checks and the ambush watch (escortgo2's)
+      disablers.rb     choosing and casting a disabling spell on the way (echild's)
+      rescue.rb        the child: find it, its home, the walk to a guard (echild's), the
+                       rescue script from ebounty with the garrote and Bard retries
+    eo/herbs/          EO::Herbs: herbs and healing, from eherbs
+      table.rb         every herb: where it is sold, what it cures, its doses; lookups
+      injuries.rb      the next herb type a wound wants; can we cast; another's wounds
+      doses.rb         the doses left in each item, learned from the game as it goes
+      sack.rb          the herb sack: find, open, contents by form, store, take, the kit
+      heal.rb          healing yourself from the sack, a dead player, an escort client
+      shop.rb          the herbalist: menu, prices, buying, bundling, the shopping list
+
+  What lives here is script-side glue that Lich itself should not carry. Anything that
+  is a game rule or parser plumbing belongs in Lich itself (Stance, Stash.wield, Bank,
+  Mana.pulse, issue_command, Spell state, the Bounty parser) and is called directly; a
+  script that needs it raises its required Lich version.
+
+        author: elanthia-online
+  contributors: Nisugi
+          game: Gemstone
+          tags: library, utility, eo
+      required: Lich >= 5.22.0
+       version: 0.2.0
+
+  Version Control:
+  Major_change.feature_addition.bugfix
+  v0.2.0 (2026-11-11)
+    - split into scripts/eo/, one file per concern, shipped by the eohunter gem
+    - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
+    - EO::Guild: ebounty's task logic (tables, NPCs, the taskmaster finder,
+      location resolution, herb lookup); the guild dialogue (get, turn in,
+      remove, expedite, the assignment NPCs, the guards) with TaskPolicy
+  v0.1.0 (2026-09-10)
+    - initial: EO.require / EO.version, EO.go2 / EO.at? / EO.nearest / EO.visit,
+      EO.help
+=end
+
+base = File.join(SCRIPT_DIR, 'eo')
+verbose = $VERBOSE
+begin
+  $VERBOSE = nil
+  %w[version help travel command containers hands town items locker skinning appraisal loot selling locksmith hoard casting wander
+     cleanse/tables cleanse/hazards cleanse/afflictions cleanse/disarms cleanse/traps
+     coordination/protocol coordination/discovery coordination/parser_projection
+     guild/tables guild/policy guild/npcs guild/location guild/forage
+     guild/taskmaster guild/assignments guild/guards guild/completion
+     guild/heirloom guild/escort_routes guild/escort guild/disablers guild/rescue
+     herbs/table herbs/injuries herbs/doses herbs/sack herbs/heal herbs/shop].each do |part|
+    load File.join(base, "#{part}.rb")
+  end
+ensure
+  $VERBOSE = verbose
+end
