@@ -49,7 +49,7 @@ module EO
             empty_hands if checkleft || checkright
             fput 'search'
             EO.settle
-            fput 'stand' until standing?
+            EO.stand
             EO.settle
 
             if checkright

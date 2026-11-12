@@ -79,7 +79,8 @@ module EO
       # @param determination [Boolean]
       # @param aimed [Boolean] already aimed at
       # @return [Symbol] :breeze, :dispelled, :cleaved, :thieved, or
-      #   :untargetable (add it to the bad targets), :unaffordable, :no_means
+      #   :untargetable (add it to the bad targets), :unaffordable, :no_means,
+      #   :failed (the cleave or thieve found no wards or did not go off)
       def clear(obj, kind, determination: false, aimed: false)
         acid = obj.name == ACID_MIST
         return :untargetable unless aimed || aim(obj)
@@ -101,14 +102,28 @@ module EO
           spell.cast("at ##{obj.id}")
           :dispelled
         elsif Lich::Gemstone::CMan.available?('Spell Cleave')
-          fput "cman scleave ##{obj.id}"
-          :cleaved
+          maneuver('scleave', obj, :cleaved)
         elsif Lich::Gemstone::CMan.available?('Spell Thieve')
-          fput "cman sthieve ##{obj.id}"
-          :thieved
+          maneuver('sthieve', obj, :thieved)
         else
           :no_means
         end
+      end
+
+      # The game's answer when a Spell Cleave or Spell Thieve went into the wards.
+      WARDS_ATTACKED = /before (?:unleashing your attack upon|sneaking in an attack on) them!/
+
+      # Spell Cleave or Spell Thieve at a hazard, by Lich's CMan, which waits
+      # out roundtime and answers with the game's line.
+      #
+      # @param name [String] scleave or sthieve
+      # @param obj [GameObj]
+      # @param done [Symbol] what a hit is reported as
+      # @return [Symbol] +done+, or :failed (no wards found, still drained,
+      #   no answer)
+      # @api private
+      def maneuver(name, obj, done)
+        Lich::Gemstone::CMan.use(name, "##{obj.id}").to_s =~ WARDS_ATTACKED ? done : :failed
       end
 
       # TARGET an Onslaught runestone and ATTACK it until it shatters or

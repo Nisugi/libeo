@@ -209,7 +209,7 @@ module EO
       # @param stashes [Integer]
       # @return [void]
       def restore_hands(stashes)
-        fput 'stand' until standing?
+        EO.stand
         EO.settle
         $fill_hands_actions.push(*$fill_hands_actions.pop(stashes).reverse) if stashes > 1
         stashes.times { fill_hands }

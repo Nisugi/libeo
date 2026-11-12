@@ -50,3 +50,27 @@ RSpec.describe 'EO.command and EO.result' do
     expect(EO.result('get #1', /You remove/)).to be_nil
   end
 end
+
+RSpec.describe 'EO.stand' do
+  def stub_stand(stands_after)
+    sent = []
+    EO.define_singleton_method(:fput) { |cmd| sent << cmd }
+    EO.define_singleton_method(:standing?) { sent.size >= stands_after }
+    EO.define_singleton_method(:settle) { nil }
+    sent
+  end
+
+  after { %i[fput standing? settle].each { |m| EO.singleton_class.remove_method(m) } }
+
+  it 'stands and stops once standing' do
+    sent = stub_stand(2)
+    expect(EO.stand).to be(true)
+    expect(sent).to eq(%w[stand stand])
+  end
+
+  it 'gives up when something keeps the character down' do
+    sent = stub_stand(99)
+    expect(EO.stand(tries: 3)).to be(false)
+    expect(sent.size).to eq(3)
+  end
+end

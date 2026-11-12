@@ -51,4 +51,18 @@ module EO
     waitrt?
     sleep 0.2
   end
+
+  # STAND until standing, a few tries at most: a web, a bind or a hold
+  # keeps a character down, and the e-scripts used to try forever.
+  #
+  # @param tries [Integer]
+  # @return [Boolean] whether the character is standing
+  def self.stand(tries: 5)
+    tries.times do
+      return true if standing?
+      fput 'stand'
+      settle
+    end
+    standing?
+  end
 end

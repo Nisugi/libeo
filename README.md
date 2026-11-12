@@ -118,13 +118,6 @@ ewaggle 1,805 to 1,510). The gain is one tested copy of what they share.
 | Mana making through society modules | Not needed: `Spell#affordable?` already has the spirit floor. |
 | Each script's own job | ebounty's bounty flow, eloot's loot and sell loop, ewaggle's spell-up order: one script uses each. |
 
-### Known issues
-
-- `EO::Cleanse::Hazards.clear` reports a cleave as done without checking the
-  game's answer.
-- The stun and stand loops in `EO::Cleanse::Afflictions` have no try limit,
-  so a character who cannot stand stays in them.
-
 ## Installing
 
 libeo needs Lich 5.22.0 or later. It ships as a gem that carries the

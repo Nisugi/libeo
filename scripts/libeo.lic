@@ -37,6 +37,10 @@
     - EO::Casting.cast gives up after MAX_HINDERED hindered tries (:hindered) instead of
       casting forever
     - EO.run_scripts / EO.split_script (eo/scripts.rb) and EO.fog_wanted?, from ebounty
+    - EO.stand: STAND a few tries at most; the cleanse, disarm, forage and heirloom code
+      used to try forever while a web, bind or hold kept the character down
+    - EO::Cleanse::Hazards.clear goes through Lich's CMan for Spell Cleave and Spell
+      Thieve and answers :failed when the game says it found no wards or was drained
     - EO::Containers asks Lich's Inventory about a carried container: OPEN only when it
       is closed, contents without LOOK IN; LOOK IN stays for the disk, a box on the
       floor, and a session without the extended feed

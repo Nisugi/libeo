@@ -75,7 +75,7 @@ module EO
           next unless Effects::Debuffs.active?(debuff)
 
           Lich::Gemstone::Mana.pulse(spell)
-          fput 'stand' until standing?
+          EO.stand
           EO.settle
           next unless spell.affordable?
 
@@ -103,7 +103,7 @@ module EO
             next unless Effects::Debuffs.active?(debuff) && Char.stamina >= 11
 
             EO.settle
-            fput 'stand' until standing?
+            EO.stand
             EO.settle
             target = XMLData.current_target_id
             fput 'target clear'

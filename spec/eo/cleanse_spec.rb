@@ -80,6 +80,24 @@ RSpec.describe EO::Cleanse do
       expect(described_class.web(bad)).to eq(web)
     end
 
+    it 'reports a cleave or thieve only when it went into the wards' do
+      globe = obj.new(id: '5', name: 'chaotic spatial anomaly', noun: 'anomaly', type: '')
+      answers = {}
+      cman = Module.new do
+        define_singleton_method(:use) { |name, _target| answers[name] }
+      end
+      stub_const('Lich::Gemstone::CMan', cman)
+      hit = 'You hang back for a moment and concentrate on the magical wards surrounding a globe, before unleashing your attack upon them!'
+      answers['scleave'] = hit
+      expect(described_class.maneuver('scleave', globe, :cleaved)).to eq(:cleaved)
+      answers['scleave'] = 'You remain mentally drained from your last attempt to perceive the threads that connect a magical ward to its bearer.'
+      expect(described_class.maneuver('scleave', globe, :cleaved)).to eq(:failed)
+      answers['scleave'] = nil
+      expect(described_class.maneuver('scleave', globe, :cleaved)).to eq(:failed)
+      answers['sthieve'] = 'You hang back for a moment and concentrate on the magical wards surrounding a globe, before sneaking in an attack on them!'
+      expect(described_class.maneuver('sthieve', globe, :thieved)).to eq(:thieved)
+    end
+
     it 'aims without TARGET at the mist and the two globes that cannot be targeted' do
       allow(described_class).to receive(:target).and_return(false)
       expect(described_class.aim(obj.new(id: '1', name: 'silvery blue globe'))).to be(true)

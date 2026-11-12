@@ -173,7 +173,7 @@ module EO
             break if !GameObj.targets.empty? && policy.use?(:run)
           end
 
-          fput 'stand' until standing?
+          EO.stand
           fill_hands
           Heirloom::Spells.stop_sanctuary(policy)
           break if count.call >= needed
