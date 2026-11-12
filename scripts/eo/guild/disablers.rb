@@ -39,12 +39,13 @@ module EO
       PREFERRED_MULTI = [213, 1011].freeze
 
       # Spells a creature shrugs off, by name; the spell is dropped for it.
+      # 410 and 709 do not reach griffins, which fly. 706 is Tenebrous
+      # Tether now, not Mind Jolt, so Mind Jolt's resisters are gone.
       SINGLE_TARGET_EXCLUSIONS = {
         501 => /\b(?:glacei|corpse|wraith|elemental|ghost)\b/,
         505 => /\b(?:glacei|elemental|wraith)\b/,
         410 => /\b(?:glacei|griffin|grifflet|elemental)\b/,
         709 => /\b(?:glacei|griffin|grifflet|elemental)\b/,
-        706 => /\b(?:glacei|construct|elemental|brawler|protector|psionicist|fanatic)\b/,
         201 => /\b(?:grimswarm|construct)\b/,
       }.freeze
       MULTI_TARGET_EXCLUSIONS = { 410 => /\b(?:glacei|wraith|elemental|cold guardian)\b/ }.freeze
