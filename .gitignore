@@ -1,0 +1,8 @@
+Gemfile.lock
+.bundle/
+vendor/
+*.log
+.rspec_status
+dist/
+doc/
+.yardoc/

@@ -1,0 +1,12 @@
+--title "libeo"
+--readme README.md
+--markup markdown
+--markup-provider kramdown
+--output-dir doc
+--protected
+--no-private
+scripts/libeo.lic
+scripts/eo/*.rb
+scripts/eo/guild/*.rb
+-
+docs/ebounty-extraction-plan.md
