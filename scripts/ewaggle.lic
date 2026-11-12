@@ -934,7 +934,7 @@ module Ewaggle
       target_info.keys.each do |name|
         next unless spell.num == 511
 
-        disk_nouns_regex = /\b(?:bassinet|cassone|chest|coffer|coffin|coffret|disk|hamper|saucer|sphere|trunk|tureen)\b/
+        disk_nouns_regex = EO::Loot::DISK_NOUNS
         disk = GameObj.loot.find { |l| l.name =~ /#{name} #{disk_nouns_regex}\b/ }
 
         unless disk

@@ -187,7 +187,6 @@ module EHerbs
       :distiller       => CharSettings['distiller'],
       :prices          => CharSettings['prices'],
       :herb_container  => UserVars.herbsack,
-      :drinkable       => /\b(?:potion|tea|elixir|brew|tincture|ale|soup|porter)\b/i,
       :skippable       => [],
       :close_herbsack  => false,
       :done_empty_hand => false,
@@ -213,99 +212,7 @@ module EHerbs
 
     settings_hash[:note] = nil
 
-    settings_hash[:open_regex] = Regexp.union(
-      /You throw back/i,
-      /You open/i,
-      /Oh no! It's already/i,
-      /You pick at the knot/i,
-      /already open/i,
-      /is open already/i,
-      /You unfasten/i,
-      /You glance around suspiciously/i,
-      /^What were you referring to\?/i,
-      /^I could not find what you were referring to\./i,
-      /You pull the long strips of leather/i,
-      /With a flick of your wrist/i,
-      /Sliding the lever on the side/i,
-      /You rub your hand/i,
-      /There doesn't seem to be any way/i,
-      /(?:Roundtime:|\.\.\.wait) (\d+) [Ss]ec(?:onds)?\./i,
-      /crumbles? and decays? away/,
-      /Myriad spectral moths pull a cloakwing/,
-      /<exposeContainer|<container/i
-    )
-
-    settings_hash[:needs_closed] = Regexp.union(
-      /You throw back/i,
-      /You open/i,
-      /You pick at the knot/i,
-      /You unfasten/i,
-      /With a quick glance over your shoulder/i,
-      /You pull the long strips of leather/i,
-      /With a flick of your wrist/i,
-      /Sliding the lever on the side/i,
-      /You rub your hand/i,
-      /Myriad spectral moths pull a cloakwing moth/,
-    )
-
-    settings_hash[:look_regex] = Regexp.union(
-      /Peering into the <a exist=.*? noun="toolkit">/i,
-      /That is closed/i,
-      /is shut too tightly to see its contents/i,
-      /In the(.*?)you see/i,
-      /In the(.*?):/i,
-      /There is nothing/i,
-      /You glance/i,
-      /^Attached to a.*keyring/i,
-      /.*?[.*?]:/i,
-      %r{The <a exist="\d+" noun="\w+">[^<]+</a> has (?:an? <a exist="\d+" noun="\w+">[^<]+</a> |nothing )?in.*scabbard and (?:an? <a exist="\d+" noun="\w+">[^<]+</a> |nothing )?in.*scabbard\.}i,
-      /^I could not find what you were referring to\./i,
-      /Hidden within the depths of a cloakwing moth greatcloak/,
-      /<exposeContainer|<dialogData|<container/i
-    )
-
-    settings_hash[:close_regex] = Regexp.union(
-      /^You (?:reach over your \w+ and )?close/,
-      /^That is already closed/,
-      /As you push/,
-      /You tie/
-    )
-
-    settings_hash[:put_regex] = Regexp.union(
-      /^You (?:put|(?:discreetly )?tuck|attach|toss|attempt to shield your|place|.* place|slip|wipe off the blade and sheathe|absent-mindedly drop|carefully add|find an incomplete bundle|untie your drawstring pouch)/,
-      /^The .+ is already a bundle/,
-      /^Your bundle would be too large if you tried to add that/,
-      /^The .+ is too large to be bundled\./,
-      /^As you place your .+ inside your .+, you notice another .+ inside the .+ and carefully arrange the two .+ into a neat bundle\./,
-      /If you wish to continue, throw the item away again within fifteen seconds/,
-      /you feel pleased with yourself at having cleaned up the surrounding area/,
-      /over your shoulder/,
-      /two items in that location/,
-      /wear three functional items/,
-      /^Your .*? won't fit in .*?\.$/,
-      /You add/,
-      /You find a suitable/,
-      /^Your .+ is already fully stocked with (?:solid|liquid) \w+\.  You put .+ in your .+\.$/
-    )
-
-    settings_hash[:get_regex] = Regexp.union(
-      /^You (?:shield the opening of .*? from view as you |discreetly |carefully |deftly|just )?(?:remove|pick up|draw|grab|reach|slip|tuck|retrieve|already have|unsheathe|detach|swap)/,
-      /^Get what\?$/,
-      /^Why don't you leave some for others\?$/,
-      /^You need a free hand/,
-      /^You already have that/,
-      /You just poured yourself/,
-      /You retrieve/,
-      /You break off/
-    )
-
-    settings_hash[:cant_bundle] = /tart|feather|special|blubber|pie|porridge|soup|fruit/i
-
     settings_hash[:min_stock_doses] = EHerbs.min_stock_doses
-
-    # 5 main areas: 'head', 'neck', 'torso', 'limbs', 'nerves'
-    # Wound method => herb area
-    settings_hash[:areas] = { 'head' => 'head', 'neck' => 'head', 'torso' => 'organ', 'limbs' => 'limb', 'nerves' => 'nerve' }
 
     settings_hash[:var_names] = {
       'buy'         => 'buy_missing',
@@ -1474,8 +1381,6 @@ module EHerbs
     rescue EO::Herbs::Sack::Full
       Utility.sack_full
     end
-
-    def self.wait_rt = EO.settle
   end
 
   # start of user input processing

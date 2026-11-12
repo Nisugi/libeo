@@ -616,89 +616,11 @@ module ELoot # Data
         /The banker nods and says, "Alright, here ye go\.  Ye understand I be takin' a little more than that from ye account in the 'Mule\.  I don't works for free!"/,
       )
 
-      @get_regex = Regexp.union(
-        /^You (?:shield the opening of .*? from view as you |discreetly |carefully |deftly |slowly |quickly )?(?:remove|draw|equip|grab|reach|slip|tuck|retrieve|already have|unsheathe|detach|swap|sling|withdraw)/,
-        /^With subtle movements, you sneak a hand/,
-        /^Get what\?$/,
-        /^Why don't you leave some for others\?$/,
-        /^You need a free hand/,
-        /^You already have that/,
-        /Reaching over your shoulder/,
-        /^As you draw/,
-        /^Ribbons of.*?light/,
-        /^You are already holding/,
-      )
-
-      @put_regex = Regexp.union(
-        /You/,
-        /Spreading your wings/,
-        /I could not find what you were referring to/,
-        /Draping the/,
-        /Heedful of your surroundings/,
-        /won't fit/,
-        /crumbles? and decays? away/,
-        /crumbles? into a pile of dust/,
-        /That is not yours/,
-        /Hey, that belongs to/,
-        /Get what/,
-        /Reaching over your shoulder/,
-        /An ethereal.*?light swirls/,
-        /As you move to put away your (?:<a exist="\d+" noun="\w+">[^<]+<\/a>|[\w-]+), it reverts to its normal state\./,
-      )
-
-      @look_regex = Regexp.union(
-        /Peering into the <a exist=.*? noun="toolkit">/i,
-        /That is closed/i,
-        /is shut too tightly to see its contents/i,
-        /In the(.*?)you see/i,
-        /In the(.*?):/i,
-        /There is nothing/i,
-        /You glance/i,
-        /^Attached to a.*keyring/i,
-        /.*?[.*?]:/i,
-        /The <a exist="\d+" noun="\w+">[^<]+<\/a> has (?:an? <a exist="\d+" noun="\w+">[^<]+<\/a> |nothing )?in.*scabbard and (?:an? <a exist="\d+" noun="\w+">[^<]+<\/a> |nothing )?in.*scabbard\./i,
-        /^I could not find what you were referring to\./i,
-        /Hidden within the depths of a cloakwing moth greatcloak/,
-        /<exposeContainer|<dialogData|<container/i,
-        /stuffed with a variety of shredded up paper and cloth/,
-        /As much as you'd like to open it, its not closed\./,
-        /^Looking at the .*?, you notice:/i, # neck sheath, no proper gameobjs viewable
-        /^The .+? has .+? in its left-hand scabbard and .+? in its right-hand scabbard\.$/i, # swordbelt scabbards, no proper gameobjs viewable
-      )
-
-      @silent_open = Regexp.union(
-        /You throw back/i,
-        /You open/i,
-        /Oh no! It's already/i,
-        /You pick at the knot/i,
-        /already open/i,
-        /is open already/i,
-        /You unfasten/i,
-        /You glance around suspiciously/i,
-        /^What were you referring to\?/i,
-        /^I could not find what you were referring to\./i,
-        /You pull the long strips of leather/i,
-        /With a flick of your wrist/i,
-        /Sliding the lever on the side/i,
-        /You rub your hand/i,
-        /There doesn't seem to be any way/i,
-        /(?:Roundtime:|\.\.\.wait) (\d+) [Ss]ec(?:onds)?\./i,
-        /crumbles? and decays? away/,
-        /crumbles? into a pile of dust/,
-        /Myriad spectral moths pull a cloakwing/,
-        /<exposeContainer|<container/i,
-        /You undo each of the/,
-        /stuffed with a variety of shredded up paper and cloth/,
-      )
-
-      @close_regex = Regexp.union(
-        /You close .*/,
-        /(?:That|It) is already closed/,
-        /What were you referring to/,
-        /seem to be any way to do that/,
-        /You tie/,
-        /You fasten the/,
-      )
+      @get_regex = EO::Hands::GET
+      @put_regex = EO::Hands::PUT
+      @look_regex = EO::Containers::LOOK
+      @silent_open = EO::Containers::OPEN
+      @close_regex = EO::Containers::CLOSE
 
       @urchin_msg = Regexp.union(
         /You (flag|summon|ask|consult|stride|go|inventory|recollect|offer|strut|sweep|casually|hear|currently) /,
@@ -2613,7 +2535,7 @@ module ELoot # Script utility type methods
       raise if lines.any? { |l| l =~ rt_regex }
     rescue => error
       ELoot.room_checkpoint!(error)
-      ELoot.wait_rt
+      EO.settle
       retry
     end
 
@@ -2629,7 +2551,7 @@ module ELoot # Script utility type methods
       result = dothistimeout(command, 3, regex)
       break unless result =~ rt_regex
 
-      ELoot.wait_rt
+      EO.settle
     end
 
     return result
@@ -3027,8 +2949,6 @@ module ELoot # Game utility type methods, over libeo
     Lich::Gemstone::Bank.f2p?
   end
 
-  def self.wait_rt = EO.settle
-
   def self.change_stance(stance)
     ELoot.msg(type: "debug", text: "stance: #{stance}")
     return unless Stance::NAMES.include?(stance) # 'none' or unset
@@ -3056,7 +2976,7 @@ module ELoot # Game utility type methods, over libeo
     }
 
     if ELoot.data.settings[:use_disk]
-      ELoot.wait_rt
+      EO.settle
       items += ELoot.disk_contents.find_all { |obj| obj.type =~ /box/ }
     end
 
@@ -3180,7 +3100,7 @@ module ELoot # Game utility type methods, over libeo
 
       if ELoot.data.coin_bag.nil? && ELoot.data.gambling_kit.nil?
         fput "open ##{ELoot.data.coin_hand.id}"
-        ELoot.wait_rt
+        EO.settle
       else
         begin
           lines = ELoot.get_command("look in ##{ELoot.data.coin_hand.id}", /Inside the|There is nothing|That is closed/i, silent: true, quiet: true)
@@ -3193,11 +3113,11 @@ module ELoot # Game utility type methods, over libeo
           if lines.any? { |l| l =~ /Inside the .* you see approximately [,\d]+ silver coins\.|Get a job/i }
             ELoot.get_res("get coins from ##{ELoot.data.coin_bag.id}", /You reach into your/)
             ELoot.data.coin_bag_full = false
-            ELoot.wait_rt
+            EO.settle
           elsif lines.any? { |l| l =~ /There are [,\d]+ silvers scattered/ }
             ELoot.get_res("gather ##{ELoot.data.gambling_kit.id}", /You dig inside/)
             ELoot.data.gambling_kit_full = false
-            ELoot.wait_rt
+            EO.settle
           elsif lines.any? { |l| l =~ /There is nothing in there/ }
             ELoot.data.coin_bag_full = false
             ELoot.data.gambling_kit_full = false
@@ -3244,7 +3164,7 @@ module ELoot # Game utility type methods, over libeo
     Lich::Gemstone::Bank.withdraw(keep_silvers) if keep_silvers.positive?
     note = Lich::Gemstone::Bank.note_in_hand
     Inventory.single_drag(note) if note
-    ELoot.wait_rt
+    EO.settle
   end
 
   def self.use_coin_hand
@@ -3277,7 +3197,7 @@ module ELoot # Game utility type methods, over libeo
 
         lines = Lich::Util.issue_command(get_coins, /You (?:place|toss)|There is only room|That might work better|needs to be open|cannot find room|coin .+ is already full!$/i)
 
-        ELoot.wait_rt if ELoot.data.gambling_kit
+        EO.settle if ELoot.data.gambling_kit
 
         if lines.any? { |l| l =~ /That might work better if you opened|needs to be open/i }
           ELoot.get_command("open ##{ELoot.data.coin_hand.id}", ELoot.data.silent_open)
@@ -3290,7 +3210,7 @@ module ELoot # Game utility type methods, over libeo
           ELoot.data.coin_bag_full = true
         elsif lines.find { |line| line.match(/You cannot find room to store any more silver/) }
           ELoot.data.gambling_kit_full = true
-          ELoot.wait_rt
+          EO.settle
         end
       rescue => error
         ELoot.room_checkpoint!(error)
@@ -3794,7 +3714,7 @@ module ELoot # Gem and Reagent hoarding
       when :debt
         ELoot.silver_withdraw(entry.debt)
         ELoot.go2("debt")
-        ELoot.wait_rt
+        EO.settle
         fput("pay #{entry.debt}")
         ELoot.silver_withdraw(2500)
         Hoard.enter_locker(place)
@@ -3969,7 +3889,7 @@ module ELoot # Gem and Reagent hoarding
         return false
       end
 
-      ELoot.wait_rt
+      EO.settle
       Hoard.open_locker
 
       !ELoot.data.stash.nil?
@@ -4398,7 +4318,7 @@ module ELoot # Gem and Reagent hoarding
             ELoot.msg(text: "Something went wrong. Not able to jar #{thing.name}.", space: true)
             $sell_ignore.push(thing.id)
             Inventory.single_drag(thing)
-            ELoot.wait_rt
+            EO.settle
             next
           when :started
             ELoot.data.inventory << { item: thing_name, count: 1, full: false }
@@ -4408,7 +4328,7 @@ module ELoot # Gem and Reagent hoarding
 
             Inventory.store_item(ELoot.data.stash, jar)
             Inventory.store_item(StowList.stow_list[:default], thing)
-            ELoot.wait_rt
+            EO.settle
 
             Hoard.build_inventory(true)
             break
@@ -4555,11 +4475,11 @@ module ELoot # Room looting
             res = ELoot.get_res("get coins from ##{box.id}", /You gather the remaining|Get what|You can only collect|You cannot hold any more silvers/)
             if res =~ /You gather the remaining/
               data[location] += ELoot.silver_check - start_silvers
-              ELoot.wait_rt
+              EO.settle
               break
             elsif res =~ /You can only collect|You cannot hold any more silvers/
               data[location] += ELoot.silver_check - start_silvers
-              ELoot.wait_rt
+              EO.settle
               room = Room.current.id
               ELoot.silver_deposit
               start_silvers = ELoot.silver_check
@@ -4617,9 +4537,9 @@ module ELoot # Room looting
           else
             res = ELoot.get_res("get coins from ##{box.id}", /You gather the remaining|Get what|You can only collect|You cannot hold any more silvers/)
             if res =~ /You gather the remaining/
-              ELoot.wait_rt
+              EO.settle
             elsif res =~ /You can only collect|You cannot hold any more silvers/
-              ELoot.wait_rt
+              EO.settle
               ELoot.msg(type: "info", text: " Can't hold any more coins...Exiting!")
               exit
             end
@@ -4767,7 +4687,7 @@ module ELoot # Room looting
           Loot.loot_all(valid)
         elsif from_where == "Box"
           ELoot.get_command("loot ##{box.id}", /You search through|You can't.*?It's closed!|There is no loot|In an attempt/i, silent: false, quiet: false)
-          ELoot.wait_rt
+          EO.settle
 
           # If bag fills up it can leave an item in hand
           recovered = [GameObj.right_hand, GameObj.left_hand].any? do |item|
@@ -5683,11 +5603,11 @@ module ELoot # Sells the loot
       table = Terminal::Table.new :title => "Eloot Breakdown", :rows => rows # , :style => {:all_separators => true}
       table.align_column(1, :right)
 
-      ELoot.wait_rt
+      EO.settle
       respond
       respond table
       respond
-      ELoot.wait_rt
+      EO.settle
       return
     end
 
@@ -6064,7 +5984,7 @@ module ELoot # Sells the loot
         next if ELoot.shop_unavailable_in_town?(place)
 
         ELoot.go2(place)
-        ELoot.wait_rt
+        EO.settle
 
         items_to_sell.each do |item|
           next if ELoot.data.settings[:keep_transmogs] && Inventory.is_transmog?(item)
@@ -6731,7 +6651,7 @@ module ELoot # Sells the loot
 
         unless GameObj.right_hand.id == box.id
           fput "swap"
-          ELoot.wait_rt
+          EO.settle
         end
 
         box = ELoot.box_unphase(box)
@@ -6806,7 +6726,7 @@ module ELoot # Sells the loot
           ELoot.data.silver_breakdown["Pool Return"] += 1
           Loot.box_loot(box, "Locksmith Pool", ELoot.data.silver_breakdown)
         end
-        ELoot.wait_rt
+        EO.settle
       end
 
       ELoot.data.silver_breakdown["Pool Depth"] = Sell.locksmith_pool_count(worker)
@@ -7329,7 +7249,7 @@ module ELoot # Starts the script
     ELoot.go2(ELoot.data.start_room)
   when /^sell/
     ELoot.data.debug_logger = ELoot::DebugLogger.new if ELoot.data.settings[:debug_file]
-    ELoot.wait_rt
+    EO.settle
 
     # Set bags as empty to avoid false full status
     ELoot.data.sacks_full = { "last cleared" => [Time.now.strftime('%Y-%m-%d %H:%M:%S'), Room.current.id, Script.current.vars[0]] }
