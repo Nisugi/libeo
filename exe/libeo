@@ -1,0 +1,79 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# libeo's installer: puts the library this gem carries into Lich.
+#
+#   libeo install [--lich-dir PATH]
+#   libeo uninstall [--lich-dir PATH]
+#   libeo doctor [--lich-dir PATH]
+#   libeo version
+
+require 'optparse'
+require_relative '../lib/libeo/install'
+
+install = LibEO::Install
+options = {}
+parser = OptionParser.new do |opts|
+  opts.banner = <<~TEXT
+    Usage: libeo <command> [--lich-dir PATH]
+
+    Commands:
+      install     copy libeo into Lich's scripts/ (also upgrades)
+      uninstall   remove what install put there; your data is untouched
+      doctor      show the Lich found, its version, and what is installed
+      version     print the version this gem carries
+
+    Lich is found from --lich-dir, else LICH_DIR, else the usual places.
+  TEXT
+  opts.on('--lich-dir PATH', 'the Lich directory (where lich.rbw is)') { |path| options[:lich_dir] = path }
+  opts.on('-h', '--help', 'this help') do
+    puts opts
+    exit
+  end
+end
+
+begin
+  command = parser.parse(ARGV).first
+  case command
+  when 'version'
+    puts "libeo #{install.version} (needs Lich #{install.required_lich} or later)"
+  when 'install'
+    dir = install.find_lich(explicit: options[:lich_dir])
+    result = install.install(dir)
+    puts "installed libeo #{result[:version]} into #{File.join(dir, 'scripts')} (#{result[:copied].size} files)"
+    puts "removed #{result[:removed].size} files a newer version no longer has" unless result[:removed].empty?
+    unless install.lich_supported?(dir)
+      found = install.lich_version(dir) || 'an unknown version'
+      warn "warning: this Lich is #{found}; libeo needs #{install.required_lich} or later"
+    end
+  when 'uninstall'
+    dir = install.find_lich(explicit: options[:lich_dir])
+    removed = install.uninstall(dir)
+    puts "removed libeo from #{File.join(dir, 'scripts')} (#{removed.size} files)"
+  when 'doctor'
+    puts "gem:     libeo #{install.version}, needs Lich #{install.required_lich} or later"
+    dir = install.find_lich(explicit: options[:lich_dir])
+    supported = install.lich_supported?(dir)
+    verdict = if supported.nil?
+                'version unknown'
+              else
+                supported ? 'ok' : 'too old'
+              end
+    puts "lich:    #{dir}, version #{install.lich_version(dir) || 'unknown'} (#{verdict})"
+    state = install.check(dir)
+    if state.nil?
+      puts 'install: none recorded; run libeo install'
+    else
+      puts "install: libeo #{state[:version]}" \
+           "#{" (this gem carries #{install.version}; run libeo install to upgrade)" if state[:version] != install.version}"
+      puts "missing: #{state[:missing].join(', ')}" unless state[:missing].empty?
+      puts "changed since install: #{state[:changed].join(', ')}" unless state[:changed].empty?
+    end
+  else
+    puts parser
+    exit(command.nil? ? 0 : 1)
+  end
+rescue LibEO::Install::Error, OptionParser::ParseError => e
+  warn "libeo: #{e.message}"
+  exit 1
+end
