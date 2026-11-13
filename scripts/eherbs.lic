@@ -18,7 +18,9 @@
   2.4.0 (2026-11-12)
     - the herb table, the wound-to-herb choice, the dose counts, the herb sack, healing,
       buying and stocking now come from libeo (EO::Herbs); the bank is Lich's Bank. This
-      script keeps its settings, its windows and its command line. Needs libeo 0.3.0 and Lich 5.22.0
+      script keeps its settings, its windows and its command line. Needs libeo 0.4.3 and Lich 5.22.0
+    - after an herb only roundtime is waited out; the cast roundtime of the yierka or 650
+      held up the next herb for no reason
   2.3.0 (2026-11-09)
     - ;eherbs setup is a Lich WebUI window instead of GTK; same options; Save & Close saves, Cancel or closing the window discards
     - setup checks Stock to % of Capacity: blank, or a whole number from 0 to 100
@@ -130,8 +132,8 @@
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.3.0')
-EO.require('0.3.0')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.3')
+EO.require('0.4.3')
 
 module EHerbs
   @@data ||= nil

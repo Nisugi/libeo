@@ -28,6 +28,8 @@ RSpec.describe EO::Herbs::Heal do
     allow(EO::Herbs::Injuries).to receive(:next_type) { |skip:, **| wounds.find { |w| skip.none? { |area| w.include?(area) } } }
     allow(described_class).to receive(:cast_spells)
     allow(EO).to receive(:settle)
+    described_class.define_singleton_method(:waitrt?) { nil }
+    described_class.define_singleton_method(:sleep) { |*| nil }
     stub_const('Lich::Messaging', Module.new { define_singleton_method(:msg) { |*| nil } })
   end
 

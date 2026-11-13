@@ -138,7 +138,9 @@ module EO
                     drinkable || Table.drinkable?(herb.name) ? "drink my #{herb.noun}" : "eat my #{herb.noun}"
                   end
         result = EO.result(command, USE_RESULT)
-        EO.settle
+        # only roundtime stops the next herb; cast roundtime (the yierka, 650) does not
+        sleep 0.2
+        waitrt?
         case result
         when /You must pick the/ then [:must_take, type]
         when /Why don't you leave some for others?/ then [:enough, type]
