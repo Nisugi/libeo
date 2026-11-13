@@ -6,7 +6,7 @@
   refuses a mismatch loudly:
 
     Script.loadlib('libeo')
-    EO.require('0.3.0')
+    EO.require('0.4.0')
 
   This file only loads the library. The library itself is scripts/eo/, one file per
   concern (EO::Settings, EO::Containers, EO::Guild, EO::Herbs, ...); each file opens
@@ -22,10 +22,21 @@
           game: Gemstone
           tags: library, utility, eo
       required: Lich >= 5.22.0
-       version: 0.3.0
+       version: 0.4.0
 
   Version Control:
   Major_change.feature_addition.bugfix
+  v0.4.0 (2026-11-12)
+    - EO::Skinning: choose (the occasional skinner, a bounty's creature, edged or blunt),
+      with_tool (free the hands, draw the tool, put it back), stand_up; kneeling gives up
+      after three tries; from eloot
+    - eloot's settings read by any script: EO::Loot::Policy.from_settings, EO::Loot.words
+      (a list matched as whole words), EO::Skinning.exclusions
+    - EO::Stow: where an item goes by the STOW list (its type's bag, the default, the
+      overflow bags in order), which bags filled up, and what a put taught (a bag that
+      closes itself, a crumbly or unlootable item); from eloot
+    - EO::Loot.search: LOOT a dead creature, storing a find at your feet or in your hand,
+      Sigil of Determination when too hurt; EO::Loot.searchable?; from eloot
   v0.3.0 (2026-11-12)
     - EO::Settings::ListForm: the ListSettingsForm window ebounty and eloot share (values to
       and from the window, the Add/Delete lists, the controls); each script keeps its tabs
@@ -51,16 +62,6 @@
     - EO::Guild::Forage: FORAGE SENSE's slots left, and the loop's steps (settle_in,
       forage_once, hurt?, workable?, leave_room) for a driver with its own loop
     - the guards' heirloom check reads the container fresh and matches the name literally
-    - EO::Skinning: choose (the occasional skinner, a bounty's creature, edged or blunt),
-      with_tool (free the hands, draw the tool, put it back), stand_up; kneeling gives up
-      after three tries; from eloot
-    - eloot's settings read by any script: EO::Loot::Policy.from_settings, EO::Loot.words
-      (a list matched as whole words), EO::Skinning.exclusions
-    - EO::Stow: where an item goes by the STOW list (its type's bag, the default, the
-      overflow bags in order), which bags filled up, and what a put taught (a bag that
-      closes itself, a crumbly or unlootable item); from eloot
-    - EO::Loot.search: LOOT a dead creature, storing a find at your feet or in your hand,
-      Sigil of Determination when too hurt; EO::Loot.searchable?; from eloot
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open
