@@ -12,7 +12,7 @@ rules.
 ```
 ;eohunter, ;ebounty ...         scripts that use it
 Script.loadlib('libeo')         how a script loads it, once per session
-EO.require('0.4.0')             the version the script was built against
+EO.require('0.4.1')             the version the script was built against
 ```
 
 ## What is in it
@@ -32,6 +32,7 @@ EO.require('0.4.0')             the version the script was built against
 | `eo/stow.rb` | `EO::Stow`: where an item goes by the STOW list (its type's bag, the default, the overflow bags in order), which bags are full, the bags to open before looting, and what a put taught: a bag that closes itself, a crumbly or unlootable item (from eloot) |
 | `eo/town.rb` | `EO::Town`: which shop to walk to and whether to go at all, a bounty town's region, Four Winds Isle, the trash can, the locksmith pool's worker (from eloot) |
 | `eo/items.rb` | `EO::Items`: toss unless marked, phase and unphase a box, lift a curse, and the disk that follows the character (from eloot) |
+| `eo/boxes.rb` | `EO::Boxes`: opening a box, its coins by GET or a coin charm, which emptied box to keep, setting a box on a disk (from eloot) |
 | `eo/locker.rb` | `EO::Locker`: the character's locker rooms, getting into a booth (taken, elsewhere, a debt), opening it to a container, leaving (from eloot) |
 | `eo/skinning.rb` | `EO::Skinning`: who needs a blunt tool, which dead to skin and with which tool, the tool drawn and put back, getting ready, the skinning and what it learned, standing up after (from eloot) |
 | `eo/appraisal.rb` | `EO::Appraisal`: ask a shop what an item is worth and read the answer (from eloot) |

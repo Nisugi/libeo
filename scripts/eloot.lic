@@ -25,7 +25,7 @@
     - the hands (free, take, wear, put away, the READY list), containers, the shop
       and region lookups, Four Winds Isle, the trash can, the pool worker, tossing,
       box phasing, decursing and the disk now come from libeo (EO::Hands, EO::Containers,
-      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.0
+      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.1
     - the locker (rooms, booth entry, open, leave), skinning and the appraisal
       reading come from libeo too (EO::Locker, EO::Skinning, EO::Appraisal)
     - the loot decision (what in the room is loot, what is wanted) and selling one
@@ -42,6 +42,11 @@
       skinning tool that cannot be drawn skips the skinning instead of trying bare-handed
     - searching the dead (LOOT's answers, a find at your feet or in your hand, the Sigil of
       Determination retry) comes from libeo (EO::Loot.search)
+    - opening a box and taking its coins, the box worth keeping, and setting a box on a
+      disk come from libeo (EO::Boxes). A coin charm gets five tries instead of pointing
+      forever; looting a box outside a sell trip no longer fails counting its silvers; a
+      box on the floor with coins it cannot pick up is looted anyway, where it used to
+      try GET COINS forever
     - which bag an item goes in (type, default, overflow), the full bags, and learning
       auto-closers and crumbly items come from libeo (EO::Stow)
   v2.15.0 (2026-11-09)
@@ -341,8 +346,8 @@ before_dying { ELoot.release_room_lease(eloot_load_token) }
 # Check version of Lich for compatibility
 # A libeo loaded earlier in this Lich session may be older than this script
 # needs; load it again unless the one loaded is new enough.
-Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.4.0')
-EO.require('0.4.0')
+Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.4.1')
+EO.require('0.4.1')
 Script.require_lich_version!
 
 require 'yaml'
@@ -3324,21 +3329,14 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
       # Only wait if the characters disk exists
       ELoot.wait_for_disk unless ELoot.data.disk.nil?
 
-      # sort to prioritize characters disk
-      disks = Group.disks
-      disks = disks.select { |d| d.name == Char.name } unless ELoot.data.settings[:use_disk_group]
-      disks.sort_by! { |d| d.name == Char.name ? 0 : 1 }
-      disks.each do |disk|
-        next if ELoot.data.disk_full[disk.name] # make sure its not full
-        next unless Disk.find_by_name(disk.name) # skip the disk unless its present
+      put = lambda do |disk, box|
+        next true if Inventory.store_item(disk, box)
 
-        result = Inventory.store_item(GameObj[disk.id], item)
-        return true if result
-
-        # inform user it didn't fit if !result
-        ELoot.msg(type: "info", text: " The #{item} won't fit in the #{disk.name} disk. Trying a different disk.") if ELoot.data.disk_full.size > 1
-        ELoot.data.disk_full[disk.name] = true
+        # inform user it didn't fit
+        ELoot.msg(type: "info", text: " The #{box} won't fit in the #{disk.name} disk. Trying a different disk.") if ELoot.data.disk_full.size > 1
+        false
       end
+      return true if EO::Boxes.to_disk(item, full: ELoot.data.disk_full, put: put, group: ELoot.data.settings[:use_disk_group])
 
       ELoot.msg(type: "info", text: " The #{item} won't fit in any disk(s). Trying a different container.")
       return false
@@ -4220,38 +4218,24 @@ module ELoot # Room looting
       ELoot.refuse_room_operation!('open locksmith boxes')
       ELoot.msg(type: "debug", text: "box_loot: box=#{box.respond_to?(:name) ? box.name : box.inspect} location=#{location.inspect} sell_recovered=#{sell_recovered}")
       if box.type == "box"
-        line = ELoot.get_res("open ##{box.id}", /open|locked/)
-        return Inventory.single_drag(box) if line =~ /locked/
+        case EO::Boxes.open(box, quiet: !ELoot.data.settings[:display_box_contents])
+        when :locked then return Inventory.single_drag(box)
+        when :unknown
+          ELoot.msg(type: "info", text: " Unable to determine the contents of  #{box.name}.")
+          return Inventory.single_drag(box)
+        end
 
-        quiet_msg = ELoot.data.settings[:display_box_contents] ? false : true
-        ELoot.get_command("look in ##{box.id}", ELoot.data.look_regex, silent: quiet_msg, quiet: quiet_msg)
-
-        # Makes sure the item's contents are available
-        return Inventory.single_drag(box) if !Inventory.container_contents(box)
-
-        start_silvers = ELoot.silver_check
-        while box.contents.any? { |obj| obj.name =~ /silver coins/ }
-          unless ELoot.data.charm.nil?
-            res = ELoot.get_res("point ##{ELoot.data.charm.id} at ##{box.id}", /You summon/)
-            data[location] += ELoot.silver_check - start_silvers
-          else
-            res = ELoot.get_res("get coins from ##{box.id}", /You gather the remaining|Get what|You can only collect|You cannot hold any more silvers/)
-            if res =~ /You gather the remaining/
-              data[location] += ELoot.silver_check - start_silvers
-              EO.settle
-              break
-            elsif res =~ /You can only collect|You cannot hold any more silvers/
-              data[location] += ELoot.silver_check - start_silvers
-              EO.settle
-              room = Room.current.id
-              ELoot.silver_deposit
-              start_silvers = ELoot.silver_check
-              ELoot.go2(room)
-            else
-              ELoot.msg(type: "info", text: " Unknown get coin result...Exiting!")
-              exit
-            end
-          end
+        deposit = lambda do
+          room = Room.current.id
+          ELoot.silver_deposit
+          ELoot.go2(room)
+          true
+        end
+        outcome, silvers = EO::Boxes.coins(box, charm: ELoot.data.charm, full: deposit)
+        data[location] += silvers if data && location
+        if outcome == :unknown
+          ELoot.msg(type: "info", text: " Unknown get coin result...Exiting!")
+          exit
         end
 
         objs = box.contents
@@ -4281,32 +4265,23 @@ module ELoot # Room looting
       box_list = GameObj.loot.find_all { |x| x.type == "box" }
 
       box_list.each do |box|
-        line = ELoot.get_res("open ##{box.id}", /open|locked/)
-        next if line&.match?(/It appears to be locked/)
-
-        quiet_msg = ELoot.data.settings[:display_box_contents] ? false : true
-        ELoot.get_command("look in ##{box.id}", ELoot.data.look_regex, silent: quiet_msg, quiet: quiet_msg)
-
-        # Makes sure the item's contents are available
-        next unless Inventory.container_contents(box)
+        opened = EO::Boxes.open(box, quiet: !ELoot.data.settings[:display_box_contents])
+        next if opened == :locked
+        if opened == :unknown
+          ELoot.msg(type: "info", text: " Unable to determine the contents of  #{box.name}.")
+          next
+        end
 
         # Drag the box to our hand
         Inventory.drag(box)
 
         # Get the coins
-        while box.contents.any? { |obj| obj.name =~ /silver coins/ }
-          unless ELoot.data.charm.nil?
-            res = ELoot.get_res("point ##{ELoot.data.charm.id} at ##{box.id}", /You summon/)
-          else
-            res = ELoot.get_res("get coins from ##{box.id}", /You gather the remaining|Get what|You can only collect|You cannot hold any more silvers/)
-            if res =~ /You gather the remaining/
-              EO.settle
-            elsif res =~ /You can only collect|You cannot hold any more silvers/
-              EO.settle
-              ELoot.msg(type: "info", text: " Can't hold any more coins...Exiting!")
-              exit
-            end
-          end
+        case EO::Boxes.coins(box, charm: ELoot.data.charm).first
+        when :full
+          ELoot.msg(type: "info", text: " Can't hold any more coins...Exiting!")
+          exit
+        when :unknown
+          ELoot.msg(type: "info", text: " Unknown get coin result, leaving the coins.")
         end
 
         # Loot the rest of the stuff
@@ -4325,10 +4300,10 @@ module ELoot # Room looting
         end
 
         save_box = ELoot.data.settings[:sell_loot_types].include?("box")
-        valuable_box = /gold|mithril|silver/
+        valuable_box = EO::Boxes::VALUABLE
 
         # If it's a save box and empty, just store it immediately also don't toss Reliquaries
-        if (save_box && box.contents.empty? && box.name =~ valuable_box) || box.name =~ /reliquary/i
+        if EO::Boxes.keep?(box, sell: save_box)
           Inventory.single_drag(box, false)
           next
         end
