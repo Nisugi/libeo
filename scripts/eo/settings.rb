@@ -25,7 +25,7 @@ module EO
     end
 
     # The e-scripts with a profile file, held in memory for any script to read.
-    SCRIPTS = %w[ebounty ecleanse eloot ewaggle].freeze
+    SCRIPTS = %w[ebounty ecleanse eherbs eloot ewaggle].freeze
 
     # What libeo holds, by script: read from the files when libeo loads, and
     # replaced whenever the script loads or saves its own.

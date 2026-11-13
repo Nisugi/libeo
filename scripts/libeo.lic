@@ -32,6 +32,7 @@
     - EO::Herbs::Heal.dose: one herb for the next wound, for a driver with its own loop;
       use runs it to the end as before; Heal.next_type. After an herb only roundtime is
       waited out, not the cast roundtime of the yierka or 650
+    - EO::Settings holds eherbs' settings too, now that eherbs keeps a profile
   v0.4.2 (2026-11-12)
     - EO::Skinning.tool / sheath: the skinning tool on the READY list and where it goes back
     - EO::Stow#closes_itself? / #learn: the auto-closer test and its report, used by every
