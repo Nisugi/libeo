@@ -7,8 +7,8 @@
   against and the library refuses a mismatch loudly:
 
     Script.loadlib('libeo')
-    Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.1')
-    EO.require('0.4.1')
+    Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.2')
+    EO.require('0.4.2')
 
   This file only loads the library. The library itself is scripts/eo/, one file per
   concern (EO::Settings, EO::Containers, EO::Guild, EO::Herbs, ...); each file opens
@@ -24,10 +24,14 @@
           game: Gemstone
           tags: library, utility, eo
       required: Lich >= 5.22.0
-       version: 0.4.1
+       version: 0.4.2
 
   Version Control:
   Major_change.feature_addition.bugfix
+  v0.4.2 (2026-11-12)
+    - EO::Skinning.tool / sheath: the skinning tool on the READY list and where it goes back
+    - EO::Stow#closes_itself? / #learn: the auto-closer test and its report, used by every
+      eloot path that finds one
   v0.4.1 (2026-11-12)
     - EO::Settings.read: any e-script's settings (ebounty, ecleanse, eloot, ewaggle), read
       from the files when libeo loads and kept current by each script's own load and save

@@ -25,7 +25,7 @@
     - the hands (free, take, wear, put away, the READY list), containers, the shop
       and region lookups, Four Winds Isle, the trash can, the pool worker, tossing,
       box phasing, decursing and the disk now come from libeo (EO::Hands, EO::Containers,
-      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.1
+      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.2
     - the locker (rooms, booth entry, open, leave), skinning and the appraisal
       reading come from libeo too (EO::Locker, EO::Skinning, EO::Appraisal)
     - the loot decision (what in the room is loot, what is wanted) and selling one
@@ -348,8 +348,8 @@ before_dying { ELoot.release_room_lease(eloot_load_token) }
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.1')
-EO.require('0.4.1')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.2')
+EO.require('0.4.2')
 Script.require_lich_version!
 
 require 'yaml'
@@ -3364,12 +3364,9 @@ module ELoot # Inventory methods, over libeo's Hands and Containers
       if lines.any? { |line| line =~ /<\/inv>You can't put your <a exist=".*?" noun=".*?">.*?<\/a> in the <a exist="(\d+)" noun=".*?">.*?<\/a>.  It's closed!/ }
         bag_id = $1
         bag = GameObj.inv.find { |i| i.id == bag_id }
-        # Must be an auto closer. Their ID and contents don't drop from GameObj.container when closed
-        if GameObj.containers.keys.include?(bag.id) && bag.contents.is_a?(Array)
-          ELoot.data.settings[:auto_close].push(bag.name)
+        if ELoot.data.stow.closes_itself?(bag)
+          ELoot.data.stow.learn(:auto_close, bag)
           Inventory.open_single_container(bag)
-          ELoot.msg(type: "info", text: " #{bag.name} must be an autocloser, adding to list.")
-          ELoot.save_profile()
         end
       end
 
@@ -4355,16 +4352,10 @@ module ELoot # Room looting
 
           items_opened.push(bag.name)
 
-          if GameObj.containers.keys.include?(bag.id) && bag.contents.is_a?(Array)
+          if ELoot.data.stow.closes_itself?(bag)
             # check if open
             lines = ELoot.get_command("look in ##{bag.id}", ELoot.data.look_regex, silent: true, quiet: true)
-
-            if lines.any? { |l| l =~ /That is closed./ }
-              # This must be our lousy autocloser
-              ELoot.data.settings[:auto_close].push(bag.name)
-              ELoot.msg(type: "info", text: " #{bag.name} must be an autocloser, adding to list.")
-              ELoot.save_profile()
-            end
+            ELoot.data.stow.learn(:auto_close, bag) if lines.any? { |l| l =~ /That is closed./ }
           end
         }
 
@@ -4820,19 +4811,18 @@ module ELoot # Room looting
       ELoot.ensure_items(key: weapon_key, list: ReadyList.ready_list, inventory: ELoot.data.weapon_inv)
       ELoot.ensure_items(key: sheath_key, list: ReadyList.ready_list, check_hidden: true)
 
-      skinner = ReadyList.ready_list[weapon_key.to_sym]
-      if blunt && !skinner
+      skinner = EO::Skinning.tool(ReadyList.ready_list, blunt: blunt)
+      if skinner.nil?
         ELoot.msg(type: "info", text: " No blunt weapon found. Please run setup and make sure it's listed.")
         return
-      elsif skinner.to_s.empty?
-        skinner = GameObj.right_hand
+      elsif ReadyList.ready_list[weapon_key.to_sym].to_s.empty?
         ELoot.msg(type: "info", text: " No edged skinning weapon found. Using your right hand.")
       end
       ELoot.msg(type: "debug", text: "#{blunt ? 'blunt' : 'edged'} skinner: #{skinner.inspect}")
 
       free = ->(hands) { hands == :both ? Inventory.free_hands(both: true) : Inventory.free_hand }
       put_away = lambda do |tool|
-        Inventory.store_item(ReadyList.ready_list[sheath_key.to_sym] || StowList.stow_list[:default], tool, true)
+        Inventory.store_item(EO::Skinning.sheath(ReadyList.ready_list, blunt: blunt) || StowList.stow_list[:default], tool, true)
         Inventory.store_item(StowList.stow_list[:default], tool) if ELoot.in_hand?(tool)
       end
 

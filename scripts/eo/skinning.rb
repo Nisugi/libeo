@@ -104,6 +104,25 @@ module EO
       [edged, blunt]
     end
 
+    # The skinning tool on the READY list: the blunt one for blunt
+    # creatures, else the edged one, else the right hand. eloot
+    # skin_obj_types.
+    #
+    # @param ready [Hash{Symbol => GameObj}] Lich's ReadyList.ready_list
+    # @param blunt [Boolean]
+    # @return [GameObj, nil] nil when a blunt tool is wanted and none is listed
+    def tool(ready, blunt:)
+      listed = ready[blunt ? :skin_weapon_blunt : :skin_weapon]
+      return listed unless listed.to_s.empty?
+
+      blunt ? nil : GameObj.right_hand
+    end
+
+    # @param ready [Hash{Symbol => GameObj}]
+    # @param blunt [Boolean]
+    # @return [GameObj, nil] where the skinning tool goes back, nil for the default bag
+    def sheath(ready, blunt:) = ready[blunt ? :skin_sheath_blunt : :skin_sheath]
+
     # The skinning tool in hand for the block, then put away: both hands
     # freed for a blunt tool, one for an edged; a tool already in hand is
     # used where it is and left there. eloot skin_obj_types.

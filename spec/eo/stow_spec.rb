@@ -72,4 +72,14 @@ RSpec.describe EO::Stow do
     expect(stow.store(rock, skipped: ->(index) { skipped << index })).to be_nil
     expect(skipped).to eq([0])
   end
+
+  it 'tells a bag that closes itself from one closed by hand, and passes on what it learns' do
+    stub_const('GameObj', Class.new { define_singleton_method(:containers) { { '2' => [] } } })
+    sack.define_singleton_method(:contents) { [] }
+    first.define_singleton_method(:contents) { nil }
+    expect(stow.closes_itself?(sack)).to be(true)
+    expect(stow.closes_itself?(first)).to be(false)
+    stow.learn(:auto_close, sack)
+    expect(learned).to eq([[:auto_close, 'leather sack']])
+  end
 end

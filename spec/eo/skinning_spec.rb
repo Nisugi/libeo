@@ -20,6 +20,23 @@ RSpec.describe EO::Skinning do
     end
   end
 
+  describe '.tool' do
+    let(:knife) { obj.new(id: '9', name: 'knife') }
+    let(:mace) { obj.new(id: '8', name: 'mace') }
+
+    before { stub_const('GameObj', Class.new { define_singleton_method(:right_hand) { :right_hand } }) }
+
+    it 'takes the listed tool, falling back to the right hand only for edged' do
+      ready = { skin_weapon: knife, skin_weapon_blunt: mace, skin_sheath_blunt: :belt }
+      expect(described_class.tool(ready, blunt: false)).to eq(knife)
+      expect(described_class.tool(ready, blunt: true)).to eq(mace)
+      expect(described_class.tool({}, blunt: false)).to eq(:right_hand)
+      expect(described_class.tool({}, blunt: true)).to be_nil
+      expect(described_class.sheath(ready, blunt: true)).to eq(:belt)
+      expect(described_class.sheath(ready, blunt: false)).to be_nil
+    end
+  end
+
   describe '.exclusions' do
     it 'joins the critter exclusions as whole words and the skin exclusions' do
       pattern = described_class.exclusions({ critter_exclude: ['rat'], skin_exclude: ['wolf'] })

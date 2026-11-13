@@ -51,6 +51,21 @@ module EO
       [bags[:default], *overflow, *items.map { |item| bags[item.type.to_s.to_sym] }].compact.uniq(&:id)
     end
 
+    # A bag that closes itself: closed, yet Lich still lists it among the
+    # containers with its contents, which a bag closed by hand drops.
+    #
+    # @param bag [GameObj]
+    # @return [Boolean]
+    def closes_itself?(bag) = GameObj.containers.key?(bag.id) && bag.contents.is_a?(Array)
+
+    # Tell +learned+ something found out outside a put (a bag found closed
+    # before looting, say).
+    #
+    # @param kind [Symbol] :auto_close, :crumbly or :unlootable
+    # @param obj [GameObj]
+    # @return [void]
+    def learn(kind, obj) = @learned.call(kind, obj)
+
     # Put an item in one bag. A full bag is remembered (not for a gold
     # ingot, which eloot sells instead); a bag that closed itself, a
     # crumbly item and an unlootable one are told to +learned+.
@@ -61,10 +76,7 @@ module EO
     # @return [Symbol] :stored, :full, :not_yours, :unlootable or :crumbled
     #   (both gone from the hand), or what else Hands.store answered
     def put(bag, item, loose: false)
-      closed = lambda do |closed_bag|
-        # Must be an auto closer. Their ID and contents don't drop from GameObj.containers when closed
-        @learned.call(:auto_close, closed_bag) if GameObj.containers.key?(closed_bag.id) && closed_bag.contents.is_a?(Array)
-      end
+      closed = ->(closed_bag) { learn(:auto_close, closed_bag) if closes_itself?(closed_bag) }
       result = Hands.store(bag, item, loose: loose, on_closed: closed)
       case result
       when :gone then :stored
