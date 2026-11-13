@@ -10,10 +10,15 @@
           game: Gemstone
           tags: bounty, adventure's guild, advguild, bounties
       required: Lich >= 5.22.0
-       version: 1.14.0
+       version: 1.15.0
 
   Version Control:
   Major_change.feature_addition.bugfix
+  v1.15.0 (2026-11-12)
+    - eloot's settings (the silver to keep, whether gems and skins sell) are read from
+      libeo (EO::Settings.read), so they hold before eloot has run this session; until
+      then all silver was deposited and the gem and skin sell checks were skipped.
+      Needs libeo 0.4.4
   v1.14.0 (2026-11-11)
     - the guild's tables, NPC finding, the taskmaster finder, location resolution,
       herb lookup and the command helpers now come from libeo (EO::Guild); needs
@@ -206,8 +211,8 @@
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.3.0')
-EO.require('0.3.0')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.4')
+EO.require('0.4.4')
 Script.require_lich_version!
 
 require 'yaml'
@@ -605,6 +610,17 @@ module EBounty
     return Lich::Util.silver_count
   end
 
+  # One of eloot's settings, from libeo's copy of its profile: there whether
+  # or not eloot has run this session. nil without an eloot profile.
+  def self.eloot_setting(key) = EO::Settings.read(:eloot)&.dig(key)
+
+  # Whether eloot's settings leave a loot type out of ;eloot sell. False
+  # without an eloot profile: nothing says it is left out.
+  def self.eloot_keeps?(type)
+    types = EBounty.eloot_setting(:sell_loot_types)
+    types ? !types.include?(type) : false
+  end
+
   def self.silver_deposit
     EBounty.msg("debug", " #{__method__} | caller: #{caller[0]}")
 
@@ -612,7 +628,7 @@ module EBounty
 
     return unless silvers.positive?
 
-    keep_silver = defined?(ELoot) ? ELoot.data.settings[:sell_keep_silver].to_i : 0
+    keep_silver = EBounty.eloot_setting(:sell_keep_silver).to_i
 
     return if (silvers - keep_silver).zero?
 
@@ -2065,7 +2081,7 @@ module EBounty
       count = EO::Guild::Completion.gems_held(EBounty.data.containers, kind)
 
       if count >= amount.to_i
-        if EBounty.data.loot_script == 'eloot' && defined?(ELoot) && !ELoot.data.settings[:sell_loot_types].include?("gem")
+        if EBounty.data.loot_script == 'eloot' && EBounty.eloot_keeps?("gem")
           EBounty.msg("error", " You've choosen to not sell gems via ;eloot sell! Please handle gem bounty manually!")
           EBounty.exit_script
         else
@@ -2105,7 +2121,7 @@ module EBounty
       count = EO::Guild::Completion.skins_held(EBounty.data.containers, skin, hidden: hidden?)
 
       if count >= needed
-        if EBounty.data.loot_script == 'eloot' && defined?(ELoot) && !ELoot.data.settings[:sell_loot_types].include?("skin")
+        if EBounty.data.loot_script == 'eloot' && EBounty.eloot_keeps?("skin")
           EBounty.msg("error", " You've choosen to not sell skins via ;eloot sell! Please handle skin bounty manually!")
           EBounty.exit_script
         else
