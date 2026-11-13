@@ -40,6 +40,8 @@
       from libeo (EO::Skinning). Kneeling to skin gives up after three tries and standing
       after five, where both used to try forever (a web or bind kept the script stuck); a
       skinning tool that cannot be drawn skips the skinning instead of trying bare-handed
+    - searching the dead (LOOT's answers, a find at your feet or in your hand, the Sigil of
+      Determination retry) comes from libeo (EO::Loot.search)
     - which bag an item goes in (type, default, overflow), the full bags, and learning
       auto-closers and crumbly items come from libeo (EO::Stow)
   v2.15.0 (2026-11-09)
@@ -4816,64 +4818,15 @@ module ELoot # Room looting
     def self.search(objs = GameObj.dead.to_a) # searches dead critters
       return if objs.empty?
 
-      regex_at_feet = /^(?:<pushBold\/> \*\* (?:A glint of light catches your eye, and you notice|Among the remains, you find|Among the spoils, you find)|Among the remains, you find) an? <a exist="(?<id>[\d-]+)" noun="(?<noun>[\w-]+)">(?<name>[\w\s-]+)<\/a>.*?(?: at your feet! \*\*|! \*\*|, which falls alongside your feet\.)$/
-      frozen_bramble_critters = ['tumbleweed', 'plant', 'shrub', 'creeper', 'vine', 'bush']
-      inhand_critters = ['skayl', 'glacei', 'caedera', 'golem', 'elemental']
-      inhand_critters_all_reg = /\b#{Regexp.union(frozen_bramble_critters + inhand_critters)}\b/
-
+      free = ->(hand) { hand == :left ? Inventory.free_hands(left: true) : Inventory.free_hand }
+      stow = ->(item) { Inventory.single_drag(item) }
       objs.each do |thing|
-        next if thing.name.match?(ELoot.data.critter_exclude_regex)
-        next if thing.name =~ /child/
-        next if thing.status =~ /gone/
+        next unless EO::Loot.searchable?(thing, exclude: ELoot.data.critter_exclude_regex)
 
         ELoot.change_stance(ELoot.data.settings[:loot_stance])
-
-        if ELoot.data.settings[:use_bloodbands]
-          fput "raise ##{ELoot.data.blood_band.id} at ##{thing.id}"
-        end
-
-        if thing.name =~ inhand_critters_all_reg
-          frozen_bramble_critters.any?(thing.noun) ? Inventory.free_hands(left: true) : Inventory.free_hand
-          if GameObj.right_hand.id.nil? && GameObj.left_hand.id.nil?
-            free_hand = "left"
-          else
-            free_hand = GameObj.right_hand.id.nil? ? "right" : "left"
-          end
-        end
-
-        # Loot it
-        3.times do
-          waitrt?
-          results = ELoot.get_command("loot ##{thing.id}", /You (search|plunge|break|tentatively)|not in any condition|see well enough to search|You can only loot creatures|Geez!  It's still alive!  Not a good time for that\.|As you (?:move to )?search/, silent: false, quiet: false)
-          ELoot.msg(type: "debug", text: "Thing: #{thing.id}-#{thing.name}, Results: #{results.first}")
-
-          if results.any? { |line| line =~ /not in any condition/ } &&
-             ELoot.data.settings[:sigil_determination_on_fail] &&
-             Spell['Sigil of Determination'].affordable? &&
-             !Spell['Sigil of Determination'].active?
-            Spell['Sigil of Determination'].cast
-            next
-          end
-
-          if results.any? { |line| line =~ regex_at_feet }
-            results.each do |line|
-              if line =~ regex_at_feet
-                match = Regexp.last_match
-                Inventory.free_hand
-                Inventory.single_drag(GameObj.new(match[:id], match[:noun], match[:name]))
-              end
-            end
-          end
-
-          break if results.any? { |line| line =~ /You (search|plunge|break|tentatively)|not in any condition|see well enough to search|You can only loot creatures|Geez!  It's still alive!  Not a good time for that\./ } ||
-                   thing.nil? || thing.status =~ /gone/
-        end
-
-        # Some creatures put an item directly in your hand
-        if thing.name =~ inhand_critters_all_reg
-          check_hand = (free_hand == "right") ? GameObj.right_hand : GameObj.left_hand
-          Inventory.single_drag(check_hand) unless check_hand.name == "Empty"
-        end
+        fput "raise ##{ELoot.data.blood_band.id} at ##{thing.id}" if ELoot.data.settings[:use_bloodbands]
+        results = EO::Loot.search(thing, free: free, stow: stow, determination: ELoot.data.settings[:sigil_determination_on_fail])
+        ELoot.msg(type: "debug", text: "Thing: #{thing.id}-#{thing.name}, Results: #{results.first}")
       end
 
       # if the setting is on always end in the loot stance

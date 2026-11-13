@@ -59,6 +59,8 @@
     - EO::Stow: where an item goes by the STOW list (its type's bag, the default, the
       overflow bags in order), which bags filled up, and what a put taught (a bag that
       closes itself, a crumbly or unlootable item); from eloot
+    - EO::Loot.search: LOOT a dead creature, storing a find at your feet or in your hand,
+      Sigil of Determination when too hurt; EO::Loot.searchable?; from eloot
   v0.2.0 (2026-11-11)
     - split into scripts/eo/, one file per concern, shipped by the eohunter gem
     - EO.room_id, EO.command / EO.result / EO.settle, EO::Containers.open

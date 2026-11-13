@@ -35,7 +35,7 @@ EO.require('0.3.0')             the version the script was built against
 | `eo/locker.rb` | `EO::Locker`: the character's locker rooms, getting into a booth (taken, elsewhere, a debt), opening it to a container, leaving (from eloot) |
 | `eo/skinning.rb` | `EO::Skinning`: who needs a blunt tool, which dead to skin and with which tool, the tool drawn and put back, getting ready, the skinning and what it learned, standing up after (from eloot) |
 | `eo/appraisal.rb` | `EO::Appraisal`: ask a shop what an item is worth and read the answer (from eloot) |
-| `eo/loot.rb` | `EO::Loot`: the room's non-loot (features, spell effects, disks), and which loot a `Policy` wants (from eloot) |
+| `eo/loot.rb` | `EO::Loot`: the room's non-loot (features, spell effects, disks), which loot a `Policy` wants (read from eloot's settings or built), and searching the dead: LOOT's answers, a find at your feet or in your hand (from eloot) |
 | `eo/selling.rb` | `EO::Selling`: sell one item at a shop: sold, refused or kept (from eloot) |
 | `eo/locksmith.rb` | `EO::Locksmith`: the town locksmith (activator, open, fee) and the locksmith pool (box order, incremental tips, the give, the list and depth, taking boxes back) (from eloot) |
 | `eo/hoard.rb` | `EO::Hoard`: hoarding gems and reagents in jars: label names, the kind check, reading a jar, the stash inventory by looking or from a premium locker manifest, filling and shaking (from eloot) |

@@ -119,5 +119,66 @@ module EO
       return false if !not_wanted.empty? && thing.type =~ Regexp.union(not_wanted)
       true
     end
+
+    # --- searching the dead -------------------------------------------------
+
+    # An item a search drops beside you rather than in the room's loot.
+    AT_FEET = %r{^(?:<pushBold/> \*\* (?:A glint of light catches your eye, and you notice|Among the remains, you find|Among the spoils, you find)|Among the remains, you find) an? <a exist="(?<id>[\d-]+)" noun="(?<noun>[\w-]+)">(?<name>[\w\s-]+)</a>.*?(?: at your feet! \*\*|! \*\*|, which falls alongside your feet\.)$}
+    # The frozen brambles: their find goes into the left hand.
+    BRAMBLES = %w[tumbleweed plant shrub creeper vine bush].freeze
+    # Creatures whose find goes into a free hand.
+    IN_HAND = /\b#{Regexp.union(BRAMBLES + %w[skayl glacei caedera golem elemental])}\b/
+    # LOOT's answer: searched, or a reason it cannot be.
+    SEARCHED = /You (search|plunge|break|tentatively)|not in any condition|see well enough to search|You can only loot creatures|Geez!  It's still alive!  Not a good time for that\./
+    SEARCH_ANSWER = Regexp.union(SEARCHED, /As you (?:move to )?search/)
+
+    # Whether a dead creature is worth searching: not excluded, not a
+    # child, not already gone.
+    #
+    # @param thing [GameObj]
+    # @param exclude [Regexp, nil]
+    # @return [Boolean]
+    def searchable?(thing, exclude: nil)
+      !((exclude && thing.name.match?(exclude)) || thing.name =~ /child/ || thing.status =~ /gone/)
+    end
+
+    # LOOT a dead creature, three tries at most, storing what it drops at
+    # your feet or puts in your hand. "Not in any condition" casts Sigil of
+    # Determination and tries again when allowed. eloot Loot.search.
+    #
+    # @param thing [GameObj]
+    # @param free [Proc] given :left or :one, frees that hand
+    # @param stow [Proc] given an item in hand, puts it away
+    # @param determination [Boolean] cast Sigil of Determination when too hurt
+    # @return [Array<String>] the last answer's lines
+    def search(thing, free:, stow:, determination: false)
+      hand = nil
+      if thing.name =~ IN_HAND
+        free.call(BRAMBLES.include?(thing.noun) ? :left : :one)
+        hand = GameObj.right_hand.id.nil? && GameObj.left_hand.id.nil? ? :left : (GameObj.right_hand.id.nil? ? :right : :left)
+      end
+      results = []
+      3.times do
+        waitrt?
+        results = EO.command("loot ##{thing.id}", SEARCH_ANSWER, silent: false, quiet: false)
+        if determination && results.any? { |line| line =~ /not in any condition/ } &&
+           Spell['Sigil of Determination'].affordable? && !Spell['Sigil of Determination'].active?
+          Spell['Sigil of Determination'].cast
+          next
+        end
+        results.each do |line|
+          next unless (found = line.match(AT_FEET))
+
+          free.call(:one)
+          stow.call(GameObj.new(found[:id], found[:noun], found[:name]))
+        end
+        break if results.any? { |line| line =~ SEARCHED } || thing.status =~ /gone/
+      end
+      if hand
+        held = hand == :right ? GameObj.right_hand : GameObj.left_hand
+        stow.call(held) unless held.name == 'Empty'
+      end
+      results
+    end
   end
 end
