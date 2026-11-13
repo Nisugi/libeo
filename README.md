@@ -12,7 +12,7 @@ rules.
 ```
 ;eohunter, ;ebounty ...         scripts that use it
 Script.loadlib('libeo')         how a script loads it, once per session
-EO.require('0.4.4')             the version the script was built against
+EO.require('0.4.5')             the version the script was built against
 ```
 
 ## What is in it

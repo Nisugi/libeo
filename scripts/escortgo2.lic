@@ -27,9 +27,13 @@ contributors: Drafix, Nisugi
         game: Gemstone
         tags: bounty
     required: Lich >= 5.22.0
-     version: 1.1.0
+     version: 1.2.0
 
   changelog:
+    1.2.0 (2026-11-12):
+      settings live in the character's escortgo2.yaml profile, so other scripts can read them
+        (EO::Settings.read(:escortgo2)); the first run copies them from CharSettings and leaves
+        those as they were. Needs libeo 0.4.5
     1.1.0 (2026-11-12):
       * the escort itself (the client, the road and its special edges, the room
         checks, the ambush watch) now comes from libeo (EO::Guild::Escort); this
@@ -73,8 +77,11 @@ contributors: Drafix, Nisugi
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.2.0')
-EO.require('0.2.0')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.5')
+EO.require('0.4.5')
+
+# This character's settings, in its escortgo2.yaml profile (copied from CharSettings once)
+char_settings = EO::Settings.store('escortgo2', migrate: %w[attack-script poach hide haste useherbs targetable untargetable])
 
 fix_setting = { 'on' => true, 'off' => false, 'true' => true, 'false' => false, 'yes' => true, 'no' => false }
 
@@ -83,45 +90,45 @@ script.vars.shift
 if script.vars[0] == 'set'
   if (script.vars[1] == 'attack-script') and script.vars[2]
     if script.vars[2].downcase == 'none'
-      CharSettings['attack-script'] = nil
+      char_settings['attack-script'] = nil
     else
-      CharSettings['attack-script'] = script.vars[2]
+      char_settings['attack-script'] = script.vars[2]
     end
-    echo "setting saved (attack-script = #{CharSettings['attack-script'] || 'none'})"
+    echo "setting saved (attack-script = #{char_settings['attack-script'] || 'none'})"
   elsif (script.vars[1] == 'poach') and (script.vars[2].downcase =~ /^(on|off|true|false|yes|no)$/)
-    CharSettings['poach'] = fix_setting[$1]
-    echo "setting saved (poach = #{CharSettings['poach']})"
+    char_settings['poach'] = fix_setting[$1]
+    echo "setting saved (poach = #{char_settings['poach']})"
   elsif (script.vars[1] == 'hide') and (script.vars[2].downcase =~ /^(on|off|true|false|yes|no)$/)
-    CharSettings['hide'] = fix_setting[$1]
-    echo "setting saved (hide = #{CharSettings['hide']})"
+    char_settings['hide'] = fix_setting[$1]
+    echo "setting saved (hide = #{char_settings['hide']})"
   elsif (script.vars[1] == 'haste') and (script.vars[2].downcase =~ /^(on|off|true|false|yes|no)$/)
-    CharSettings['haste'] = fix_setting[$1]
-    echo "setting saved (haste = #{CharSettings['haste']})"
+    char_settings['haste'] = fix_setting[$1]
+    echo "setting saved (haste = #{char_settings['haste']})"
   elsif (script.vars[1] == 'useherbs') and (script.vars[2].downcase =~ /^(on|off|true|false|yes|no)$/)
-    CharSettings['useherbs'] = fix_setting[$1]
-    echo "setting saved (useherbs = #{CharSettings['useherbs']})"
+    char_settings['useherbs'] = fix_setting[$1]
+    echo "setting saved (useherbs = #{char_settings['useherbs']})"
   else
     echo "You're doing it wrong.  (#{$clean_lich_char}#{script.name} help)"
   end
   exit
 elsif script.vars[0].downcase == 'list'
   output = "\n"
-  output.concat "   attack-script: #{CharSettings['attack-script'] || 'none'}\n"
-  output.concat "           poach: #{CharSettings['poach'] || 'false'}\n"
-  output.concat "           haste: #{CharSettings['haste'] || 'false'}\n"
-  output.concat "            hide: #{CharSettings['hide'] || 'false'}\n"
-  output.concat "        useherbs: #{CharSettings['useherbs'] || 'false'}\n"
+  output.concat "   attack-script: #{char_settings['attack-script'] || 'none'}\n"
+  output.concat "           poach: #{char_settings['poach'] || 'false'}\n"
+  output.concat "           haste: #{char_settings['haste'] || 'false'}\n"
+  output.concat "            hide: #{char_settings['hide'] || 'false'}\n"
+  output.concat "        useherbs: #{char_settings['useherbs'] || 'false'}\n"
   output.concat "\n"
   respond output
   exit
 end
 
 travel_cost   = nil
-poach         = CharSettings['poach']
-attack_script = CharSettings['attack-script']
-hide          = CharSettings['hide']
-haste         = CharSettings['haste']
-useherbs      = CharSettings['useherbs']
+poach         = char_settings['poach']
+attack_script = char_settings['attack-script']
+hide          = char_settings['hide']
+haste         = char_settings['haste']
+useherbs      = char_settings['useherbs']
 
 options = script.vars.find_all { |var| var =~ /^\-\-/ }
 script.vars.delete_if { |var| var =~ /^\-\-/ }
@@ -177,8 +184,8 @@ unless script.vars.empty?
   exit
 end
 
-CharSettings['targetable']   ||= Array.new
-CharSettings['untargetable'] ||= Array.new
+char_settings['targetable']   ||= Array.new
+char_settings['untargetable'] ||= Array.new
 
 # A controlling script may override the silver carried per trip through
 # $ego2_travel_cost; the library's table is the default.
@@ -196,12 +203,12 @@ Thread.new { wait_until { dead? }; Script.self.kill }
 # names learned on the road are saved for next time.
 policy = EO::Guild::Escort::Policy.new(
   attack_script: attack_script, poach: poach, hide: hide, haste: haste, useherbs: useherbs,
-  travel_cost:   travel_cost, targetable: CharSettings['targetable'], untargetable: CharSettings['untargetable']
+  travel_cost:   travel_cost, targetable: char_settings['targetable'], untargetable: char_settings['untargetable']
 )
 before_dying {
   $ego2_escort_id = nil
-  CharSettings['targetable'] = policy.targetable.uniq
-  CharSettings['untargetable'] = policy.untargetable.uniq
+  char_settings['targetable'] = policy.targetable.uniq
+  char_settings['untargetable'] = policy.untargetable.uniq
 }
 
 begin

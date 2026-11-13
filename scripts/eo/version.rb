@@ -8,7 +8,7 @@
 # library and scripts see. (A script body is evaluated inside Lich::Common,
 # which is why libeo.lic itself never opens the module.)
 module EO
-  VERSION = '0.4.4'.freeze
+  VERSION = '0.4.5'.freeze
 
   # The lowest version a caller may name that this library still serves. Raise it
   # when an API is removed, so a script built against the removed API fails at

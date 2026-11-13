@@ -25,7 +25,7 @@ module EO
     end
 
     # The e-scripts with a profile file, held in memory for any script to read.
-    SCRIPTS = %w[ebounty ecleanse eherbs eloot ewaggle].freeze
+    SCRIPTS = %w[ebounty echild ecleanse eherbs eloot escortgo2 ewaggle ewander].freeze
 
     # What libeo holds, by script: read from the files when libeo loads, and
     # replaced whenever the script loads or saves its own.
@@ -53,6 +53,47 @@ module EO
     # @param script [String]
     # @param settings [Hash, nil]
     # @return [void]
+    # A script's settings kept in its profile and used like CharSettings:
+    # read with [], and []= saves. A list changed in place is saved by
+    # #save, and again when the script exits. echild, escortgo2, ewander.
+    class Store
+      # @param script [String]
+      # @param migrate [Array<String>] keys copied from CharSettings when the
+      #   script has no profile yet; CharSettings is left as it was
+      def initialize(script, migrate: [])
+        @script = script
+        @values = Settings.load_profile(script) || migrate.to_h { |key| [key, Settings.plain(CharSettings[key])] }
+        save unless File.exist?(Settings.profile_path(script))
+      end
+
+      # @param key [String]
+      def [](key) = @values[key]
+
+      # @param key [String]
+      # @param value [Object]
+      def []=(key, value)
+        @values[key] = value
+        save
+      end
+
+      # @return [String] the file written
+      def save = Settings.save_profile(@script, @values)
+
+      # @return [Hash]
+      def to_h = @values
+    end
+
+    # The script's Store, saved again when the script exits.
+    #
+    # @param script [String]
+    # @param migrate [Array<String>] see Store#initialize
+    # @return [Store]
+    def self.store(script, migrate: [])
+      store = Store.new(script.to_s, migrate: migrate)
+      before_dying { store.save }
+      store
+    end
+
     # @api private
     def self.hold(script, settings)
       @held[script] = settings && deep_freeze(Marshal.load(Marshal.dump(settings)))

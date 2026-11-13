@@ -125,6 +125,37 @@ RSpec.describe EO::Settings do
       expect(described_class.load_profile('eherbs')).to eq(prices: { 28_938 => { blood: { cost: 200 } } }, list: [1])
     end
 
+    describe '.store' do
+      let(:dying) { [] }
+
+      before do
+        hooks = dying
+        described_class.define_singleton_method(:before_dying) { |&block| hooks << block }
+        stub_const('CharSettings', { 'delay' => 2.5, 'boundary' => ['10'] })
+      end
+
+      after { described_class.singleton_class.remove_method(:before_dying) }
+
+      it 'copies the listed CharSettings once, then keeps to the profile' do
+        store = described_class.store('ewander', migrate: %w[delay boundary])
+        expect(store['delay']).to eq(2.5)
+        expect(described_class.load_profile('ewander')).to eq('delay' => 2.5, 'boundary' => ['10'])
+
+        CharSettings['delay'] = 9.0
+        expect(described_class.store('ewander', migrate: %w[delay])['delay']).to eq(2.5)
+      end
+
+      it 'saves on a write, and a list changed in place when the script exits' do
+        store = described_class.store('ewander', migrate: %w[boundary])
+        store['delay'] = 1.0
+        expect(described_class.read(:ewander)['delay']).to eq(1.0)
+
+        store['boundary'].push('20')
+        dying.each(&:call)
+        expect(described_class.load_profile('ewander')['boundary']).to eq(%w[10 20])
+      end
+    end
+
     describe '.read' do
       before { described_class.instance_variable_set(:@held, {}) }
 

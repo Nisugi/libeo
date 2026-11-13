@@ -16,9 +16,13 @@
      game: Gemstone
      tags: movement
  required: Lich >= 5.22.0
-  version: 2.1.0
+  version: 2.2.0
 
   changelog:
+    2.2.0 (2026-11-12):
+        settings live in the character's ewander.yaml profile, so other scripts can read
+        them (EO::Settings.read(:ewander)); the first run copies them from CharSettings and
+        leaves those as they were. Needs libeo 0.4.5
     2.1.0 (2026-11-12):
       - the step, the Elemental Confluence, picking a named creature and learning
         what TARGET accepts come from libeo (EO::Wander); needs libeo 0.2.0 and Lich 5.22.0
@@ -60,8 +64,8 @@
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.2.0')
-EO.require('0.2.0')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.5')
+EO.require('0.4.5')
 
 module EWander
   # ---------------------------------------------------------------------------
@@ -70,30 +74,42 @@ module EWander
   module Settings
     module_function
 
+    # This character's settings, in its ewander.yaml profile (copied from
+    # CharSettings once). Lists changed in place are saved by the commands
+    # that change them, and when the script exits.
+    def store
+      # Lich keeps this module between runs; each run opens its own
+      @store = nil unless @run.equal?(Script.current)
+      @run = Script.current
+      @store ||= EO::Settings.store('ewander', migrate: %w[boundary untargetable targetable delay])
+    end
+
+    def save = store.save
+
     def boundary
-      CharSettings['boundary'] ||= []
+      store['boundary'] ||= []
     end
 
     def untargetable
-      CharSettings['untargetable'] ||= []
+      store['untargetable'] ||= []
     end
 
     def targetable
-      CharSettings['targetable'] ||= []
+      store['targetable'] ||= []
     end
 
     def delay
-      CharSettings['delay'] ||= 1.0
+      store['delay'] ||= 1.0
     end
 
     def delay=(value)
-      CharSettings['delay'] = value.to_f
+      store['delay'] = value.to_f
     end
 
     def clear!
-      CharSettings['boundary']     = []
-      CharSettings['untargetable'] = []
-      CharSettings['targetable']   = []
+      store['boundary']     = []
+      store['untargetable'] = []
+      store['targetable']   = []
     end
   end
 
@@ -166,6 +182,7 @@ module EWander
       else
         echo 'error: current room is unknown'
       end
+      Settings.save
     end
 
     def remove_boundary(script)
@@ -190,6 +207,7 @@ module EWander
       else
         echo 'current room is unknown'
       end
+      Settings.save
     end
 
     def set_delay(script)

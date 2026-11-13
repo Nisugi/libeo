@@ -7,8 +7,8 @@
   against and the library refuses a mismatch loudly:
 
     Script.loadlib('libeo')
-    Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.4')
-    EO.require('0.4.4')
+    Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.5')
+    EO.require('0.4.5')
 
   This file only loads the library. The library itself is scripts/eo/, one file per
   concern (EO::Settings, EO::Containers, EO::Guild, EO::Herbs, ...); each file opens
@@ -24,10 +24,14 @@
           game: Gemstone
           tags: library, utility, eo
       required: Lich >= 5.22.0
-       version: 0.4.4
+       version: 0.4.5
 
   Version Control:
   Major_change.feature_addition.bugfix
+  v0.4.5 (2026-11-12)
+    - EO::Settings.store: a script's settings in its profile, used like CharSettings and
+      copied from it once; echild, escortgo2 and ewander keep theirs there, and libeo
+      holds them for EO::Settings.read like the others
   v0.4.4 (2026-11-12)
     - EO::Settings.save_profile writes what a CharSettings proxy wraps; a proxy in the
       YAML could not be loaded back (eherbs' prices, copied from CharSettings)
