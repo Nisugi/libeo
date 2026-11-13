@@ -2,10 +2,12 @@
   libeo: the shared library for the e-scripts (ebounty, eloot, eherbs, ecleanse, eohunter, ...).
 
   Loaded once per session with Script.loadlib('libeo'); definitions persist after the
-  library script exits. A script names the version it was built against and the library
-  refuses a mismatch loudly:
+  library script exits. Script.loadlib never loads it twice, so a script that needs a newer
+  copy than the session holds runs libeo again. Then it names the version it was built
+  against and the library refuses a mismatch loudly:
 
     Script.loadlib('libeo')
+    Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.1')
     EO.require('0.4.1')
 
   This file only loads the library. The library itself is scripts/eo/, one file per
@@ -27,6 +29,8 @@
   Version Control:
   Major_change.feature_addition.bugfix
   v0.4.1 (2026-11-12)
+    - the e-scripts run libeo again when the session holds an older copy; Script.loadlib
+      loads a library once a session, so an update needed a Lich restart
     - EO::Boxes: opening a box (locked, open, contents known), its coins by GET or a coin
       charm (five tries), the box worth keeping, setting a box on a disk; from eloot
   v0.4.0 (2026-11-12)

@@ -346,7 +346,9 @@ before_dying { ELoot.release_room_lease(eloot_load_token) }
 # Check version of Lich for compatibility
 # A libeo loaded earlier in this Lich session may be older than this script
 # needs; load it again unless the one loaded is new enough.
-Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.4.1')
+# Script.loadlib loads libeo once a session; a copy older than this script needs is run again
+Script.loadlib('libeo')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.1')
 EO.require('0.4.1')
 Script.require_lich_version!
 

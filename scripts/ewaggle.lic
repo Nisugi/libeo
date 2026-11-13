@@ -76,7 +76,9 @@
 
 # A libeo loaded earlier in this Lich session may be older than this script
 # needs; load it again unless the one loaded is new enough.
-Script.loadlib('libeo') unless defined?(::EO::VERSION) && Gem::Version.new(::EO::VERSION) >= Gem::Version.new('0.3.0')
+# Script.loadlib loads libeo once a session; a copy older than this script needs is run again
+Script.loadlib('libeo')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.3.0')
 EO.require('0.3.0')
 Script.require_lich_version!
 
