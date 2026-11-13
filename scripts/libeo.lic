@@ -31,6 +31,8 @@
   v0.4.6 (2026-11-12)
     - EO::Town.keep_silver: carry exactly the silver to keep, by Lich's Bank; ebounty,
       eloot and eherbs deposit through it
+    - eo/settings.rb split: settings/words.rb (the command line), settings/table.rb (the
+      table and listing), settings/window.rb (the setup window's shared parts)
   v0.4.5 (2026-11-12)
     - EO::Settings.store: a script's settings in its profile, used like CharSettings and
       copied from it once; echild, escortgo2 and ewander keep theirs there, and libeo
@@ -105,7 +107,7 @@ base = File.join(SCRIPT_DIR, 'eo')
 verbose = $VERBOSE
 begin
   $VERBOSE = nil
-  %w[version help messages settings travel command scripts containers hands stow town items boxes locker skinning appraisal loot selling locksmith hoard casting wander brooch chain
+  %w[version help messages settings settings/words settings/table settings/window travel command scripts containers hands stow town items boxes locker skinning appraisal loot selling locksmith hoard casting wander brooch chain
      cleanse/tables cleanse/hazards cleanse/afflictions cleanse/disarms cleanse/traps
      coordination/protocol coordination/discovery coordination/parser_projection
      guild/tables guild/policy guild/npcs guild/location guild/forage

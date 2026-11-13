@@ -3,6 +3,9 @@
 require_relative 'eo_helper'
 require 'tmpdir'
 require_relative '../../scripts/eo/settings'
+require_relative '../../scripts/eo/settings/words'
+require_relative '../../scripts/eo/settings/table'
+require_relative '../../scripts/eo/settings/window'
 
 RSpec.describe EO::Settings do
   let(:setup) do
