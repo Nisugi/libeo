@@ -20,7 +20,8 @@
       other scripts can read them (EO::Settings.read(:eherbs)). The first run copies them
       from CharSettings and UserVars.herbsack and leaves those as they were; the herb
       sack is still written to UserVars.herbsack for the scripts that read it there.
-      Needs libeo 0.4.4
+      Needs libeo 0.4.6
+    - the deposit goes through libeo (EO::Town.keep_silver)
   2.4.0 (2026-11-12)
     - the herb table, the wound-to-herb choice, the dose counts, the herb sack, healing,
       buying and stocking now come from libeo (EO::Herbs); the bank is Lich's Bank. This
@@ -138,8 +139,8 @@
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.4')
-EO.require('0.4.4')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.6')
+EO.require('0.4.6')
 
 module EHerbs
   @@data ||= nil
@@ -521,9 +522,7 @@ module EHerbs
     end
 
     def self.deposit
-      return unless Utility.check_silver > 0
-      Utility.go2('bank')
-      Lich::Gemstone::Bank.deposit
+      EO::Town.keep_silver(go: -> { Utility.go2('bank') })
     end
 
     # A note for a shopping run, kept in the sack until the herbalist.

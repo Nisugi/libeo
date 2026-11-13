@@ -18,7 +18,10 @@
     - eloot's settings (the silver to keep, whether gems and skins sell) are read from
       libeo (EO::Settings.read), so they hold before eloot has run this session; until
       then all silver was deposited and the gem and skin sell checks were skipped.
-      Needs libeo 0.4.4
+      Needs libeo 0.4.6
+    - the deposit goes through libeo (EO::Town.keep_silver) and Lich's Bank, so a
+      free-to-play account's deposit and withdrawal work; it sent DEPOSIT and WITHDRAW
+      itself
   v1.14.0 (2026-11-11)
     - the guild's tables, NPC finding, the taskmaster finder, location resolution,
       herb lookup and the command helpers now come from libeo (EO::Guild); needs
@@ -211,8 +214,8 @@
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.4')
-EO.require('0.4.4')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.6')
+EO.require('0.4.6')
 Script.require_lich_version!
 
 require 'yaml'
@@ -628,19 +631,7 @@ module EBounty
 
     return unless silvers.positive?
 
-    keep_silver = EBounty.eloot_setting(:sell_keep_silver).to_i
-
-    return if (silvers - keep_silver).zero?
-
-    EBounty.go2('bank')
-
-    if silvers > keep_silver
-      amount = silvers - keep_silver
-      fput("deposit #{amount}")
-    elsif silvers < keep_silver
-      amount = keep_silver - silvers
-      fput("withdraw #{amount}")
-    end
+    EO::Town.keep_silver(keep: EBounty.eloot_setting(:sell_keep_silver), go: -> { EBounty.go2('bank') })
   end
 
   ##### Data & Setup End #####

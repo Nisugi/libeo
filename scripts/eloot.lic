@@ -25,7 +25,7 @@
     - the hands (free, take, wear, put away, the READY list), containers, the shop
       and region lookups, Four Winds Isle, the trash can, the pool worker, tossing,
       box phasing, decursing and the disk now come from libeo (EO::Hands, EO::Containers,
-      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.2
+      EO::Town, EO::Items); the bank is Lich's Bank. Needs libeo 0.4.6
     - the locker (rooms, booth entry, open, leave), skinning and the appraisal
       reading come from libeo too (EO::Locker, EO::Skinning, EO::Appraisal)
     - the loot decision (what in the room is loot, what is wanted) and selling one
@@ -42,6 +42,7 @@
       skinning tool that cannot be drawn skips the skinning instead of trying bare-handed
     - searching the dead (LOOT's answers, a find at your feet or in your hand, the Sigil of
       Determination retry) comes from libeo (EO::Loot.search)
+    - depositing keeps the silver set to keep through libeo (EO::Town.keep_silver)
     - opening a box and taking its coins, the box worth keeping, and setting a box on a
       disk come from libeo (EO::Boxes). A coin charm gets five tries instead of pointing
       forever; looting a box outside a sell trip no longer fails counting its silvers; a
@@ -348,8 +349,8 @@ before_dying { ELoot.release_room_lease(eloot_load_token) }
 # needs; load it again unless the one loaded is new enough.
 # Script.loadlib loads libeo once a session; a copy older than this script needs is run again
 Script.loadlib('libeo')
-Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.2')
-EO.require('0.4.2')
+Script.run('libeo') if Gem::Version.new(::EO::VERSION) < Gem::Version.new('0.4.6')
+EO.require('0.4.6')
 Script.require_lich_version!
 
 require 'yaml'
@@ -2969,20 +2970,15 @@ module ELoot # Game utility type methods, over libeo
     # Any notes on us?
     note = StowList.stow_list[:default].contents.find { |obj| obj.noun =~ /^(?:note|scrip|chit)$/ }
 
-    # Head over to the bank if something to do.
-    current_silvers = ELoot.silver_check
-    return unless (current_silvers != keep_silvers) || (note && !ELoot.f2p?)
-
-    ELoot.go2('bank')
-
-    # Lich's Bank knows Pinefar, the free-to-play cap and the notes it takes
-    if Lich::Gemstone::Bank.deposit.nil? && ELoot.f2p? && !Lich::Gemstone::Bank.pinefar?
+    # Head over to the bank if something to do: deposit, take the keeper silvers back
+    case EO::Town.keep_silver(keep: keep_silvers, go: -> { ELoot.go2('bank') }, force: note && !ELoot.f2p?)
+    when :none then return
+    when :no_bank
       ELoot.msg(type: "info", text: " You don't have a bank in this town. Exiting...")
       exit
     end
 
-    # Finally withdraw any keeper silvers and stow note if given
-    Lich::Gemstone::Bank.withdraw(keep_silvers) if keep_silvers.positive?
+    # Stow a note if given
     note = Lich::Gemstone::Bank.note_in_hand
     Inventory.single_drag(note) if note
     EO.settle

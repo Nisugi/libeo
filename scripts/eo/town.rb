@@ -5,7 +5,7 @@ module EO
   # the region a bounty's town shares with the character, Four Winds Isle,
   # the trash can and the locksmith pool's worker. eloot 2.15.0: Region,
   # fwi?, shop_unavailable_in_town?, nearest_shop,
-  # fwi_return, find_trash, find_worker.
+  # fwi_return, find_trash, find_worker; and carrying the silver to keep.
   module Town
     module_function
 
@@ -146,6 +146,28 @@ module EO
         sleep 0.1
       end
       nil
+    end
+
+    # Carry exactly +keep+ silver: walk to the bank only when there is
+    # something to do, deposit everything (Lich's Bank knows the
+    # free-to-play cap and Pinefar), then take +keep+ back out. ebounty and
+    # eloot silver_deposit, eherbs deposit.
+    #
+    # @param keep [Integer] silver to carry away
+    # @param go [Proc] walks to the bank (a script's own go2)
+    # @param force [Boolean] go even when the silver is right (a note to deposit)
+    # @return [Symbol] :none (already right), :done, or :no_bank (nothing
+    #   could be deposited where it walked)
+    def keep_silver(keep: 0, go: -> { EO.go2('bank') }, force: false)
+      keep = [keep.to_i, 0].max
+      return :none if !force && Lich::Gemstone::Currency.silver(refresh: true).to_i == keep
+
+      go.call
+      deposited = Lich::Gemstone::Bank.deposit
+      return :no_bank if deposited.nil? && Lich::Gemstone::Bank.f2p? && !Lich::Gemstone::Bank.pinefar?
+
+      Lich::Gemstone::Bank.withdraw(keep) if keep.positive?
+      :done
     end
   end
 end

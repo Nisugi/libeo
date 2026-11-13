@@ -75,6 +75,36 @@ RSpec.describe EO::Town do
   end
 end
 
+RSpec.describe EO::Town, '.keep_silver' do
+  let(:walks) { [] }
+  let(:bank) { double('bank', deposit: 500, withdraw: 100, f2p?: false, pinefar?: false) }
+
+  def carrying(silver)
+    stub_const('Lich::Gemstone::Currency', Module.new { define_singleton_method(:silver) { |**| silver } })
+    stub_const('Lich::Gemstone::Bank', bank)
+  end
+
+  it 'stays away from the bank when the silver is already right' do
+    carrying(100)
+    expect(described_class.keep_silver(keep: 100, go: -> { walks << :bank })).to eq(:none)
+    expect(walks).to be_empty
+  end
+
+  it 'deposits everything and takes the keeper silvers back' do
+    carrying(600)
+    expect(described_class.keep_silver(keep: 100, go: -> { walks << :bank })).to eq(:done)
+    expect(walks).to eq([:bank])
+    expect(bank).to have_received(:withdraw).with(100)
+  end
+
+  it 'goes anyway when forced, and says when there is no bank to take it' do
+    carrying(0)
+    allow(bank).to receive_messages(deposit: nil, f2p?: true)
+    expect(described_class.keep_silver(go: -> { walks << :bank }, force: true)).to eq(:no_bank)
+    expect(walks).to eq([:bank])
+  end
+end
+
 RSpec.describe EO::Hands do
   it 'names READY list keys the way READY and STORE want them' do
     expect(described_class.ready_word(:secondary_weapon)).to eq('2weapon')
