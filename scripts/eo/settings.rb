@@ -24,12 +24,57 @@ module EO
       File.join(DATA_DIR, XMLData.game, name, "#{script}.yaml")
     end
 
+    # The e-scripts with a profile file, held in memory for any script to read.
+    SCRIPTS = %w[ebounty ecleanse eloot ewaggle].freeze
+
+    # What libeo holds, by script: read from the files when libeo loads, and
+    # replaced whenever the script loads or saves its own.
+    @held ||= {}
+
+    # Read every e-script's profile into memory. libeo.lic calls this when
+    # it loads.
+    #
+    # @param scripts [Array<String>]
+    # @return [void]
+    def self.preload(scripts = SCRIPTS) = scripts.each { |script| load_profile(script) }
+
+    # Another script's settings, as that script last loaded or saved them.
+    # Frozen: only the script itself changes its settings, and its save
+    # puts the new values here.
+    #
+    # @param script [String, Symbol] e.g. :eloot
+    # @return [Hash, nil] nil when the script has no profile
+    def self.read(script)
+      script = script.to_s
+      load_profile(script) unless @held.key?(script)
+      @held[script]
+    end
+
+    # @param script [String]
+    # @param settings [Hash, nil]
+    # @return [void]
+    # @api private
+    def self.hold(script, settings)
+      @held[script] = settings && deep_freeze(Marshal.load(Marshal.dump(settings)))
+    end
+
+    # @api private
+    def self.deep_freeze(value)
+      case value
+      when Hash then value.each_value { |v| deep_freeze(v) }
+      when Array then value.each { |v| deep_freeze(v) }
+      end
+      value.freeze
+    end
+
     # @param script [String]
     # @param name [String] the character
     # @return [Hash, nil] the saved settings, nil when there is no profile yet
     def self.load_profile(script, name: Char.name)
       path = profile_path(script, name: name)
-      File.exist?(path) ? YAML.load_file(path) : nil
+      settings = File.exist?(path) ? YAML.load_file(path) : nil
+      hold(script, settings) if name == Char.name
+      settings
     end
 
     # Write the settings, making the character's directory when it is new.
@@ -41,6 +86,7 @@ module EO
       path = profile_path(script)
       FileUtils.mkdir_p(File.dirname(path))
       File.write(path, settings.to_yaml)
+      hold(script, settings)
       path
     end
 

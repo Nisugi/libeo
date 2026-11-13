@@ -113,6 +113,37 @@ RSpec.describe EO::Settings do
       expect(File.exist?(path)).to be(true)
       expect(described_class.load_profile('eloot')).to eq(tip: 5)
     end
+
+    describe '.read' do
+      before { described_class.instance_variable_set(:@held, {}) }
+
+      it 'serves what was preloaded, frozen, without touching the file again' do
+        described_class.save_profile('eloot', { skin: true, unskinnable: ['rat'] })
+        described_class.instance_variable_set(:@held, {})
+        described_class.preload(%w[eloot])
+        File.delete(described_class.profile_path('eloot'))
+
+        held = described_class.read(:eloot)
+        expect(held).to eq(skin: true, unskinnable: ['rat'])
+        expect(held).to be_frozen
+        expect(held[:unskinnable]).to be_frozen
+      end
+
+      it 'takes the new values on save, apart from the caller' do
+        settings = { skin: true }
+        described_class.save_profile('eloot', settings)
+        settings[:skin] = false
+        expect(described_class.read(:eloot)).to eq(skin: true)
+      end
+
+      it 'is nil for a script without a profile, and ignores another character' do
+        expect(described_class.read(:ewaggle)).to be_nil
+        FileUtils.mkdir_p(File.join(@dir, 'GSIV', 'Alt'))
+        File.write(File.join(@dir, 'GSIV', 'Alt', 'eloot.yaml'), { skin: false }.to_yaml)
+        described_class.load_profile('eloot', name: 'Alt')
+        expect(described_class.read(:eloot)).to be_nil
+      end
+    end
   end
 
   describe EO::Settings::ListForm do

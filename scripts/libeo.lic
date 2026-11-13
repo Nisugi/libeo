@@ -29,6 +29,8 @@
   Version Control:
   Major_change.feature_addition.bugfix
   v0.4.1 (2026-11-12)
+    - EO::Settings.read: any e-script's settings (ebounty, ecleanse, eloot, ewaggle), read
+      from the files when libeo loads and kept current by each script's own load and save
     - the e-scripts run libeo again when the session holds an older copy; Script.loadlib
       loads a library once a session, so an update needed a Lich restart
     - EO::Boxes: opening a box (locked, open, contents known), its coins by GET or a coin
@@ -95,4 +97,11 @@ begin
   end
 ensure
   $VERBOSE = verbose
+end
+
+# every e-script's settings, for any script to read (EO::Settings.read)
+begin
+  EO::Settings.preload
+rescue StandardError => e
+  Lich::Messaging.msg('warn', "libeo: could not read the e-script settings: #{e.message}")
 end
