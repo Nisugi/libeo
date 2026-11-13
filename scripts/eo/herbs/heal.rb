@@ -82,57 +82,84 @@ module EO
         end
       end
 
-      # Heal the character from the sack until nothing it holds helps.
+      # The wound type to treat next, nil when there is none (or, for
+      # blood only, health is close enough to full).
+      #
+      # @param policy [Policy]
+      # @param skip [Array<String>] types to pass over (the sack lacks them)
+      # @return [String, nil]
+      def next_type(policy, skip: [])
+        return (Char.health + 7) >= Char.max_health ? nil : 'blood' if policy.blood_only
+
+        Injuries.next_type(skip: skip, skip_scars: policy.skip_scars, spellcast_only: policy.spellcast_only,
+                           ranged_only: policy.ranged_only)
+      end
+
+      # One herb for the next wound: in hand, from the sack, or bought; the
+      # helper spells; then eaten or drunk. A driver with its own loop
+      # calls this between other work; use runs it to the end.
       #
       # @param sack [Sack]
       # @param policy [Policy]
+      # @param skip [Array<String>] types the sack lacks; grown here
       # @param used [Array<String>] ids of herbs taken out, for the driver to put back; grown here
       # @param buy [Proc, nil] given a type, buys it and returns the item in hand, or nil
       # @param before_sack [Proc, nil] run before the sack is reached for (a walk back to it)
+      # @return [Array(Symbol, String)] the outcome and the type: :done (nothing
+      #   to treat, type nil), :dosed, :missing (no herb for it; skipped from
+      #   now on), :must_take (no_get but the herb has to be picked up), or
+      #   :enough (the game refused more from here)
+      def dose(sack:, policy:, skip: [], used: [], buy: nil, before_sack: nil)
+        type = next_type(policy, skip: skip)
+        return [:done, nil] if type.nil?
+
+        drinkable = false
+        herb = [GameObj.right_hand, GameObj.left_hand].find { |i| Table.cures?(i.name, type) }
+        if herb.nil? && [Wounds.leftArm, Wounds.rightArm].min < 3
+          before_sack&.call
+          herb = find(sack.contents, type, policy)
+          drinkable = sack.take(herb) if herb && !(policy.no_get && !Table.drinkable?(herb.name))
+        end
+        if herb.nil? && buy && policy.buy_missing && !policy.blood_only && type !~ /poison|disease/
+          herb = buy.call(type)
+          drinkable = herb && Table.drinkable?(herb.name)
+        end
+        if herb.nil?
+          skip.concat(skip_for(type))
+          Lich::Messaging.msg('warn', "Missing herb for #{type}: #{Table.entries(type).map { |h| h[:name] }.join(', ')}")
+          return [:missing, type]
+        end
+
+        cast_spells(policy)
+        used << herb.id unless used.include?(herb.id)
+        command = if policy.no_get
+                    "eat #{herb.noun}"
+                  else
+                    drinkable || Table.drinkable?(herb.name) ? "drink my #{herb.noun}" : "eat my #{herb.noun}"
+                  end
+        result = EO.result(command, USE_RESULT)
+        EO.settle
+        case result
+        when /You must pick the/ then [:must_take, type]
+        when /Why don't you leave some for others?/ then [:enough, type]
+        when nil then raise Guild::Error, 'no result for eating herbs'
+        else [:dosed, type]
+        end
+      end
+
+      # Heal the character from the sack until nothing it holds helps.
+      #
+      # @param (see #dose)
       # @return [Result]
       def use(sack:, policy:, used: [], buy: nil, before_sack: nil)
         skip = []
         missing = []
         loop do
-          type = policy.blood_only ? 'blood' : Injuries.next_type(skip: skip, skip_scars: policy.skip_scars,
-                                                                  spellcast_only: policy.spellcast_only, ranged_only: policy.ranged_only)
-          break if type.nil?
-          break if policy.blood_only && (Char.health + 7) >= Char.max_health
-
-          drinkable = false
-          herb = [GameObj.right_hand, GameObj.left_hand].find { |i| Table.cures?(i.name, type) }
-          if herb.nil? && [Wounds.leftArm, Wounds.rightArm].min < 3
-            before_sack&.call
-            herb = find(sack.contents, type, policy)
-            if herb
-              drinkable = sack.take(herb) unless policy.no_get && !Table.drinkable?(herb.name)
-            end
-          end
-          if herb.nil? && buy && policy.buy_missing && !policy.blood_only && type !~ /poison|disease/
-            herb = buy.call(type)
-            drinkable = herb && Table.drinkable?(herb.name)
-          end
-
-          if herb.nil?
-            missing << type
-            skip.concat(skip_for(type))
-            Lich::Messaging.msg('warn', "Missing herb for #{type}: #{Table.entries(type).map { |h| h[:name] }.join(', ')}")
-            next
-          end
-
-          cast_spells(policy)
-          used << herb.id unless used.include?(herb.id)
-          command = if policy.no_get
-                      "eat #{herb.noun}"
-                    else
-                      drinkable || Table.drinkable?(herb.name) ? "drink my #{herb.noun}" : "eat my #{herb.noun}"
-                    end
-          result = EO.result(command, USE_RESULT)
-          EO.settle
-          case result
-          when /You must pick the/ then return Result.new(outcome: :must_take, missing: missing)
-          when /Why don't you leave some for others?/ then return Result.new(outcome: :enough, missing: missing)
-          when nil then raise Guild::Error, 'no result for eating herbs'
+          outcome, type = dose(sack: sack, policy: policy, skip: skip, used: used, buy: buy, before_sack: before_sack)
+          case outcome
+          when :done then break
+          when :missing then missing << type
+          when :must_take, :enough then return Result.new(outcome: outcome, missing: missing)
           end
         end
         Result.new(outcome: :healed, missing: missing)

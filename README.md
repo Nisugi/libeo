@@ -67,7 +67,7 @@ EO.require('0.4.2')             the version the script was built against
 | `eo/herbs/injuries.rb` | the next herb type a wound wants, another character's wounds from APPRAISE or LOOK |
 | `eo/herbs/doses.rb` | the doses left in each item, learned from the game as herbs are used, bought and bundled |
 | `eo/herbs/sack.rb` | the herb sack: finding, opening, contents by form, storing and taking, the Survivalist's Kit and its distiller |
-| `eo/herbs/heal.rb` | healing yourself from the sack, a dead player by pouring, an escort client by handing over |
+| `eo/herbs/heal.rb` | healing yourself from the sack (one herb at a time with `dose`, or to the end with `use`), a dead player by pouring, an escort client by handing over |
 | `eo/herbs/shop.rb` | the herbalist: menu, prices, buying, bundling, the shopping list against dose targets |
 
 `EO::Guild` is the Adventurer's Guild task logic that came out of ebounty,

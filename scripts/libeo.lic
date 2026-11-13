@@ -32,6 +32,8 @@
     - EO::Skinning.tool / sheath: the skinning tool on the READY list and where it goes back
     - EO::Stow#closes_itself? / #learn: the auto-closer test and its report, used by every
       eloot path that finds one
+    - EO::Herbs::Heal.dose: one herb for the next wound, for a driver with its own loop;
+      use runs it to the end as before; Heal.next_type
   v0.4.1 (2026-11-12)
     - EO::Settings.read: any e-script's settings (ebounty, ecleanse, eloot, ewaggle), read
       from the files when libeo loads and kept current by each script's own load and save
