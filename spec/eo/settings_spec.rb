@@ -114,6 +114,17 @@ RSpec.describe EO::Settings do
       expect(described_class.load_profile('eloot')).to eq(tip: 5)
     end
 
+    it "saves what a CharSettings proxy wraps, at any depth, so the file loads back" do
+      proxy = Class.new do
+        attr_reader :target
+
+        def initialize(target) = @target = target
+        def self.name = 'Lich::Common::SettingsProxy'
+      end
+      described_class.save_profile('eherbs', { prices: proxy.new({ 28_938 => { blood: proxy.new({ cost: 200 }) } }), list: proxy.new([1]) })
+      expect(described_class.load_profile('eherbs')).to eq(prices: { 28_938 => { blood: { cost: 200 } } }, list: [1])
+    end
+
     describe '.read' do
       before { described_class.instance_variable_set(:@held, {}) }
 

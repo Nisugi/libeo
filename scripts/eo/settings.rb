@@ -58,6 +58,19 @@ module EO
       @held[script] = settings && deep_freeze(Marshal.load(Marshal.dump(settings)))
     end
 
+    # A value with Lich's CharSettings proxies swapped for what they wrap,
+    # at any depth: a proxy written to YAML cannot be read back.
+    #
+    # @api private
+    def self.plain(value)
+      value = value.target while value.class.name.to_s.end_with?('SettingsProxy') && value.respond_to?(:target)
+      case value
+      when Hash then value.to_h { |k, v| [plain(k), plain(v)] }
+      when Array then value.map { |v| plain(v) }
+      else value
+      end
+    end
+
     # @api private
     def self.deep_freeze(value)
       case value
@@ -85,6 +98,7 @@ module EO
     def self.save_profile(script, settings)
       path = profile_path(script)
       FileUtils.mkdir_p(File.dirname(path))
+      settings = plain(settings)
       File.write(path, settings.to_yaml)
       hold(script, settings)
       path
